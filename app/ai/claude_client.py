@@ -18,12 +18,9 @@ MAX_TOOL_ROUNDS = 5
 
 def _get_client():
     import anthropic
+    import httpx
     api_key = settings.ANTHROPIC_API_KEY or "dummy_key"
-    try:
-        return anthropic.Anthropic(api_key=api_key)
-    except Exception:
-        import httpx
-        return anthropic.Anthropic(api_key=api_key, http_client=httpx.Client())
+    return anthropic.Anthropic(api_key=api_key, http_client=httpx.Client())
 
 
 def _run_loop(system_prompt: str, messages: list, user_id: int, use_tools: bool) -> str:

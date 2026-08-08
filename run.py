@@ -45,11 +45,8 @@ async def _post_init(application):
 
 
 def main():
-    if not settings.TELEGRAM_BOT_TOKEN or not settings.ANTHROPIC_API_KEY:
-        raise SystemExit(
-            "Set TELEGRAM_BOT_TOKEN and ANTHROPIC_API_KEY in your .env before running. "
-            "See .env.example."
-        )
+    if not settings.TELEGRAM_BOT_TOKEN:
+        raise SystemExit("Set TELEGRAM_BOT_TOKEN in your .env before running. See .env.example.")
 
     init_db()
     application = build_application()

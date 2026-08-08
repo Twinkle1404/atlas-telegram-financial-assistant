@@ -1,0 +1,63 @@
+"""
+Entry point. Boots the database, starts the Telegram bot in polling mode,
+and schedules the proactive intelligence jobs (daily briefings, watchlist
+alerts, reminders) via APScheduler running inside the same asyncio loop.
+"""
+import logging
+import asyncio
+
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+from app.config import settings
+from app.database import init_db
+from app.bot import handlers
+from app.scheduler import jobs
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
+
+
+def build_application():
+    application = ApplicationBuilder().token(settings.TELEGRAM_BOT_TOKEN).build()
+
+    # /start is the one unavoidable Telegram-native trigger to open a chat;
+    # everything after it is natural conversation, no other commands exist.
+    application.add_handler(CommandHandler("start", handlers.start_handler))
+
+    application.add_handler(MessageHandler(filters.VOICE, handlers.voice_handler))
+    application.add_handler(MessageHandler(filters.PHOTO, handlers.photo_handler))
+    application.add_handler(MessageHandler(filters.Document.ALL, handlers.document_handler))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.text_handler))
+
+    return application
+
+
+async def _post_init(application):
+    scheduler = AsyncIOScheduler()
+    bot = application.bot
+    scheduler.add_job(jobs.send_daily_briefings, "interval", minutes=15, args=[bot])
+    scheduler.add_job(jobs.send_evening_summaries, "interval", minutes=30, args=[bot])
+    scheduler.add_job(jobs.check_watchlist_alerts, "interval", minutes=10, args=[bot])
+    scheduler.add_job(jobs.deliver_scheduled_reminders, "interval", minutes=1, args=[bot])
+    scheduler.start()
+    logger.info("Scheduler started: daily briefings, evening summaries, watchlist alerts, reminders.")
+
+
+def main():
+    if not settings.TELEGRAM_BOT_TOKEN or not settings.ANTHROPIC_API_KEY:
+        raise SystemExit(
+            "Set TELEGRAM_BOT_TOKEN and ANTHROPIC_API_KEY in your .env before running. "
+            "See .env.example."
+        )
+
+    init_db()
+    application = build_application()
+    application.post_init = _post_init
+
+    logger.info("Financial Assistant bot starting (polling mode)...")
+    application.run_polling(allowed_updates=["message"])
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,12 @@
+python-telegram-bot==21.4
+anthropic==0.34.2
+SQLAlchemy==2.0.32
+apscheduler==3.10.4
+yfinance==0.2.43
+requests==2.32.3
+pdfplumber==0.11.4
+python-dotenv==1.0.1
+pydantic==2.8.2
+tenacity==8.5.0
+openai==1.42.0
+

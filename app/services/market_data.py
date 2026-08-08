@@ -12,9 +12,15 @@ _usd_inr_rate_cache: float = 84.0
 
 _FALLBACK_DATA = {
     "AAPL": {"price_usd": 225.50, "prev_usd": 222.25, "sector": "Technology", "pe": 32.1, "beta": 1.05, "mcap_usd": 3450000000000},
+    "AMZN": {"price_usd": 186.40, "prev_usd": 184.20, "sector": "Consumer Cyclical", "pe": 41.5, "beta": 1.15, "mcap_usd": 1940000000000},
     "NVDA": {"price_usd": 128.20, "prev_usd": 123.50, "sector": "Technology", "pe": 45.2, "beta": 1.68, "mcap_usd": 3150000000000},
     "MSFT": {"price_usd": 448.00, "prev_usd": 444.00, "sector": "Technology", "pe": 36.4, "beta": 0.89, "mcap_usd": 3320000000000},
     "GOOGL": {"price_usd": 178.40, "prev_usd": 176.50, "sector": "Communication Services", "pe": 24.8, "beta": 1.02, "mcap_usd": 2200000000000},
+    "TSLA": {"price_usd": 210.60, "prev_usd": 206.80, "sector": "Consumer Cyclical", "pe": 58.2, "beta": 2.10, "mcap_usd": 670000000000},
+    "META": {"price_usd": 515.20, "prev_usd": 508.50, "sector": "Communication Services", "pe": 26.5, "beta": 1.22, "mcap_usd": 1300000000000},
+    "NFLX": {"price_usd": 655.00, "prev_usd": 648.00, "sector": "Communication Services", "pe": 38.4, "beta": 1.28, "mcap_usd": 280000000000},
+    "RELIANCE.NS": {"price_usd": 35.20, "prev_usd": 34.80, "sector": "Energy & Conglomerate", "pe": 27.5, "beta": 0.95, "mcap_usd": 235000000000},
+    "TATAMOTORS.NS": {"price_usd": 12.10, "prev_usd": 11.90, "sector": "Automotive", "pe": 16.8, "beta": 1.45, "mcap_usd": 44000000000},
     "SPY": {"price_usd": 545.00, "prev_usd": 541.50, "sector": "Financial Services", "pe": 26.0, "beta": 1.00, "mcap_usd": 560000000000},
     "^TNX": {"price_usd": 3.88, "prev_usd": 3.90, "sector": "Macro", "pe": None, "beta": None, "mcap_usd": None},
     "^VIX": {"price_usd": 16.20, "prev_usd": 16.55, "sector": "Macro", "pe": None, "beta": None, "mcap_usd": None},

@@ -125,12 +125,17 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
     words = [w.strip(".,!?\"'") for w in user_text.split()]
     known_tickers = {
         "apple": "AAPL", "aapl": "AAPL",
+        "amazon": "AMZN", "amzn": "AMZN",
         "nvidia": "NVDA", "nvda": "NVDA",
         "microsoft": "MSFT", "msft": "MSFT",
         "google": "GOOGL", "googl": "GOOGL", "alphabet": "GOOGL",
         "tesla": "TSLA", "tsla": "TSLA",
+        "meta": "META", "facebook": "META",
+        "netflix": "NFLX", "nflx": "NFLX",
+        "amd": "AMD", "intel": "INTC", "boeing": "BA",
         "reliance": "RELIANCE.NS", "tata": "TATAMOTORS.NS", "tatamotors": "TATAMOTORS.NS",
         "tcs": "TCS.NS", "infosys": "INFY.NS", "infy": "INFY.NS",
+        "wipro": "WIPRO.NS", "hdfc": "HDFCBANK.NS", "icici": "ICICIBANK.NS", "sbi": "SBIN.NS",
         "spy": "SPY", "s&p": "SPY", "s&p500": "SPY"
     }
 
@@ -139,13 +144,16 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
         if w.lower() in known_tickers:
             target_ticker = known_tickers[w.lower()]
             break
-        elif len(w) <= 5 and w.isupper() and w.isalpha():
-            target_ticker = w
+        elif len(w) <= 6 and w.isalpha():
+            target_ticker = w.upper()
             break
+
+    if not target_ticker and len(words) == 1 and len(words[0]) >= 2:
+        target_ticker = words[0].upper()
 
     if target_ticker or any(k in text_lower for k in ["profit", "loss", "revenue", "financials", "quarter", "earnings"]):
         if not target_ticker:
-            target_ticker = "AAPL"
+            target_ticker = "AMZN"
 
         quote = json.loads(dispatch_tool("get_stock_quote", {"ticker": target_ticker}, user_id))
         fundamentals = json.loads(dispatch_tool("get_company_fundamentals", {"ticker": target_ticker}, user_id))

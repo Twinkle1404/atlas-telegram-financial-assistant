@@ -40,8 +40,9 @@ async def _post_init(application):
     scheduler.add_job(jobs.send_evening_summaries, "interval", minutes=30, args=[bot])
     scheduler.add_job(jobs.check_watchlist_alerts, "interval", minutes=10, args=[bot])
     scheduler.add_job(jobs.deliver_scheduled_reminders, "interval", minutes=1, args=[bot])
+    scheduler.add_job(jobs.proactive_insight_scan, "interval", hours=2, args=[bot])
     scheduler.start()
-    logger.info("Scheduler started: daily briefings, evening summaries, watchlist alerts, reminders.")
+    logger.info("Scheduler started: briefings, evening summaries, watchlist alerts, reminders, proactive insights.")
 
 
 def main():

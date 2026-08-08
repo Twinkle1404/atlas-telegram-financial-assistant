@@ -245,9 +245,101 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
 {flags}
 """
 
+    # 4. Comparison requests
+    if any(k in text_lower for k in ["compare", "vs", "versus", "difference between"]):
+        comp_tickers = []
+        for w in words:
+            if w.lower() in known_tickers:
+                comp_tickers.append(known_tickers[w.lower()])
+            elif len(w) <= 5 and w.isupper() and w.isalpha():
+                comp_tickers.append(w)
+        if len(comp_tickers) >= 2:
+            comp_data = {}
+            for t in comp_tickers[:4]:
+                comp_data[t] = json.loads(dispatch_tool("get_company_fundamentals", {"ticker": t}, user_id))
+            lines = ["📊 **Side-by-Side Investment Comparison**\n"]
+            for t, d in comp_data.items():
+                name = d.get("name") or t
+                mcap = d.get("market_cap_formatted") or "N/A"
+                pe = d.get("pe_ratio") or "N/A"
+                margin = f"{d.get('profit_margin', 0)*100:.1f}%" if d.get("profit_margin") else "N/A"
+                beta = d.get("beta", "N/A")
+                lines.append(f"**{name} ({t})**")
+                lines.append(f"- Market Cap: {mcap} | P/E: {pe}x | Net Margin: {margin} | Beta: {beta}\n")
+            return "\n".join(lines)
+
+    # 5. News & events requests
+    if any(k in text_lower for k in ["news", "headline", "latest", "what happened", "what's happening", "whats happening", "update"]):
+        for w in words:
+            if w.lower() in known_tickers:
+                target = known_tickers[w.lower()]
+                news_res = json.loads(dispatch_tool("get_company_news", {"query": target, "max_items": 4}, user_id))
+                lines = [f"📰 **Latest News: {target}**\n"]
+                for item in news_res[:4]:
+                    lines.append(f"• **{item.get('title', 'Update')}** — {item.get('source', 'Financial News')} ({item.get('date', 'Recent')})")
+                return "\n".join(lines)
+        macro_res = json.loads(dispatch_tool("get_macro_indicators", {}, user_id))
+        usdinr = macro_res.get("USD_INR_Exchange_Rate", {}).get("value", 84.10)
+        vix = macro_res.get("VIX_Volatility_Index", {}).get("value", 16.20)
+        return f"""📰 **Quick Market Pulse**
+
+• **USD/INR:** ₹{usdinr:,.2f}
+• **VIX (Fear Index):** {vix} — {"Low volatility, calm markets" if vix < 20 else "Elevated volatility, stay alert"}
+
+💡 Ask me about any specific company for detailed news and analysis!"""
+
+    # 6. Greetings & conversational intents — feel alive
+    greetings = ["hi", "hello", "hey", "good morning", "good evening", "good afternoon", "sup", "yo", "howdy"]
+    if any(text_lower.startswith(g) for g in greetings) or text_lower in greetings:
+        macro_res = json.loads(dispatch_tool("get_macro_indicators", {}, user_id))
+        usdinr = macro_res.get("USD_INR_Exchange_Rate", {}).get("value", 84.10)
+        vix = macro_res.get("VIX_Volatility_Index", {}).get("value", 16.20)
+        sentiment = "Markets are calm" if vix < 20 else "Markets are showing some volatility"
+        return f"""Hey! 👋 {sentiment} today (VIX: {vix}).
+
+💱 **USD/INR:** ₹{usdinr:,.2f}
+
+What would you like to explore? You can:
+• Type any **company name** for instant research & P&L
+• Type **MARKET** for a full index & macro overview
+• Send a **PDF report** for executive summary
+• Describe your **holdings** for portfolio analysis"""
+
+    # 7. What did I miss / catch me up
+    if any(k in text_lower for k in ["what did i miss", "catch me up", "missed", "away", "what's new", "whats new", "brief me"]):
+        market_data_res = json.loads(dispatch_tool("get_market_overview", {}, user_id))
+        macro_res = json.loads(dispatch_tool("get_macro_indicators", {}, user_id))
+        sp500_change = market_data_res.get("S&P 500", {}).get("change_pct", 0.65)
+        usdinr = macro_res.get("USD_INR_Exchange_Rate", {}).get("value", 84.10)
+        vix = macro_res.get("VIX_Volatility_Index", {}).get("value", 16.20)
+        return f"""📋 **Here's what you missed:**
+
+📈 **Market Snapshot:**
+• S&P 500: {sp500_change:+.2f}% today
+• VIX: {vix} — {"Calm sentiment" if vix < 20 else "Elevated caution"}
+• USD/INR: ₹{usdinr:,.2f}
+
+💡 Ask about any company by name for a deep dive, or type **MARKET** for the full picture."""
+
+    # 8. Help / what can you do
+    if any(k in text_lower for k in ["help", "what can you do", "features", "how do i", "commands"]):
+        return """🤖 **I'm your AI Financial Analyst. Here's what I can do:**
+
+📊 **Company Research** — Type any company name (e.g. 'Apple', 'Amazon', 'Reliance')
+📈 **Market Intelligence** — Type 'MARKET' for indices, macro data & economic calendar
+💼 **Portfolio Analysis** — Describe holdings (e.g. '100 AAPL, 50 NVDA, 200 SPY')
+📄 **Document Analysis** — Upload PDFs, annual reports, or earnings decks
+📑 **IC Research Memo** — Ask me to export a research memo on any company
+🔔 **Watchlist & Alerts** — Ask me to track any stock or set price alerts
+⏰ **Reminders** — 'Remind me before Apple's earnings call'
+🖼️ **Chart Analysis** — Send any financial chart screenshot
+📰 **News & Filings** — Ask about latest news or SEC filings for any company
+
+Just talk to me naturally — no commands needed!"""
+
     return (
-        "Hey! I'm your AI Financial Assistant. Ask me about any company (e.g. 'Apple', 'Tesla', 'Reliance'), "
-        "type 'MARKET' for stock market analysis, type a portfolio holding (e.g. '100 AAPL, 50 NVDA'), or request an IC Research Memo!"
+        "I'm here and ready! Ask me about any company (e.g. 'Apple', 'Tesla', 'Reliance'), "
+        "type **MARKET** for stock market analysis, describe your portfolio, or upload a document for analysis."
     )
 
 

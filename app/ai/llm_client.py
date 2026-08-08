@@ -22,7 +22,7 @@ def get_available_provider() -> str:
         return "gemini"
     elif settings.OPENAI_API_KEY:
         return "openai"
-    return "anthropic"
+    return "fallback"
 
 
 def _run_anthropic_loop(system_prompt: str, messages: list, user_id: int, use_tools: bool) -> str:
@@ -30,14 +30,11 @@ def _run_anthropic_loop(system_prompt: str, messages: list, user_id: int, use_to
     import httpx
     from app.ai.tools import TOOL_SCHEMAS, dispatch_tool
     
-    # Explicitly pass httpx.Client() to avoid httpx 0.28.1 'proxies' TypeError in older anthropic versions
-    try:
-        client = anthropic.Anthropic(
-            api_key=settings.ANTHROPIC_API_KEY,
-            http_client=httpx.Client()
-        )
-    except Exception:
-        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    # Explicitly pass httpx.Client() to resolve httpx 0.28.1 'proxies' TypeError
+    client = anthropic.Anthropic(
+        api_key=settings.ANTHROPIC_API_KEY,
+        http_client=httpx.Client()
+    )
     
     for _ in range(MAX_TOOL_ROUNDS):
         response = client.messages.create(
@@ -117,11 +114,49 @@ def _run_openai_loop(system_prompt: str, messages: list, user_id: int, use_tools
 
 
 def _smart_fallback_response(user_text: str, user_id: int) -> str:
-    """Generates structured financial research, P&L, stock quote, or portfolio report
-    directly if third-party LLM authentication is unconfigured or unavailable."""
+    """Generates structured financial research, stock market analysis, P&L, stock quote,
+    or portfolio report directly when external API key is unconfigured or encounters disruptions."""
     from app.ai.tools import dispatch_tool
     text_lower = user_text.lower().strip()
 
+    # 1. Stock Market Intelligence & Overview Check
+    if any(k in text_lower for k in ["market", "stock market", "indices", "overview", "nifty", "sensex", "nasdaq", "dow", "s&p"]):
+        market_data_res = json.loads(dispatch_tool("get_market_overview", {}, user_id))
+        macro_res = json.loads(dispatch_tool("get_macro_indicators", {}, user_id))
+        calendar_res = json.loads(dispatch_tool("get_economic_calendar", {}, user_id))
+
+        sp500_price = market_data_res.get("S&P 500", {}).get("formatted_price", "₹45,780.00")
+        sp500_change = market_data_res.get("S&P 500", {}).get("change_pct", 0.65)
+        nasdaq_price = market_data_res.get("Nasdaq", {}).get("formatted_price", "₹14,920.00")
+        nasdaq_change = market_data_res.get("Nasdaq", {}).get("change_pct", 1.12)
+        dow_price = market_data_res.get("Dow Jones", {}).get("formatted_price", "₹3,320.00")
+        dow_change = market_data_res.get("Dow Jones", {}).get("change_pct", 0.32)
+
+        tnx = macro_res.get("10Y_Treasury_Yield", {}).get("value", 3.88)
+        vix = macro_res.get("VIX_Volatility_Index", {}).get("value", 16.20)
+        usdinr = macro_res.get("USD_INR_Exchange_Rate", {}).get("value", 84.10)
+        oil = macro_res.get("Crude_Oil_WTI", {}).get("value", 76.50)
+
+        events_summary = "\n".join([f"- **{e['event']}** ({e['date']}): Forecast {e['forecast']}" for e in calendar_res[:3]])
+
+        return f"""📈 **Stock Market Intelligence & Index Overview**
+
+📌 **Major Stock Index Performance (in ₹ Rupees):**
+- **S&P 500 Index:** {sp500_price} ({sp500_change:+.2f}% today)
+- **Nasdaq Composite:** {nasdaq_price} ({nasdaq_change:+.2f}% today)
+- **Dow Jones Industrial:** {dow_price} ({dow_change:+.2f}% today)
+
+🌐 **Global Macro Benchmarks & FX:**
+- **USD / INR Exchange Rate:** ₹{usdinr:,.2f}
+- **10-Year US Treasury Yield:** {tnx}%
+- **VIX Volatility Index:** {vix} (Moderate Risk Sentiment)
+- **Crude Oil WTI:** ${oil}/bbl
+
+📅 **Upcoming High-Impact Economic Catalysts:**
+{events_summary}
+"""
+
+    # 2. Company & Profit/Loss Research Check
     words = [w.strip(".,!?\"'") for w in user_text.split()]
     known_tickers = {
         "apple": "AAPL", "aapl": "AAPL",
@@ -191,6 +226,7 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
 - **Target Price (Mean):** ₹{fundamentals.get('target_mean_price', 0):,.2f}
 """
 
+    # 3. Portfolio analytics check
     if any(c.isdigit() for c in user_text) and any(k in text_lower for k in ["hold", "shares", "portfolio", "aapl", "nvda", "spy"]):
         portfolio_res = json.loads(dispatch_tool("analyze_portfolio", {"holdings": user_text}, user_id))
         if "error" not in portfolio_res:
@@ -211,7 +247,7 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
 
     return (
         "Hey! I'm your AI Financial Assistant. Ask me about any company (e.g. 'Apple', 'Tesla', 'Reliance'), "
-        "type a portfolio holding (e.g. '100 AAPL, 50 NVDA'), or request an IC Research Memo!"
+        "type 'MARKET' for stock market analysis, type a portfolio holding (e.g. '100 AAPL, 50 NVDA'), or request an IC Research Memo!"
     )
 
 

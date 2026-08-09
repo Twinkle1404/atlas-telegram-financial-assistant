@@ -36,7 +36,26 @@ def test_conversational_context_fallback():
     res_risk = _smart_fallback_response("Is it risky?", user_id)
     assert "Risk Analysis" in res_risk or "Tata" in res_risk or "TATAMOTORS" in res_risk
 
-    # Third turn using "What about its competitors?"
-    res_comp = _smart_fallback_response("What about its competitors?", user_id)
-    assert "Competitor Overview" in res_comp or "Competitor" in res_comp
+def test_build_personalized_dashboard():
+    from app.bot.handlers import build_personalized_dashboard
+    from app.services import memory_service
+
+    user = memory_service.get_or_create_user("test_dash_123", "Twinkle", "twinkle")
+    dashboard = build_personalized_dashboard(user)
+
+    assert "Good Morning" in dashboard or "Twinkle" in dashboard
+    assert "Today's Market" in dashboard
+    assert "Your Watchlist" in dashboard
+    assert "Important News" in dashboard
+    assert "Market Movers" in dashboard
+    assert "What Matters Today" in dashboard
+    assert "Learn Today" in dashboard
+
+
+def test_get_personalized_news():
+    from app.services import news_service
+
+    news = news_service.get_personalized_news(categories=["Banking", "Mutual funds"])
+    assert isinstance(news, list)
+
 

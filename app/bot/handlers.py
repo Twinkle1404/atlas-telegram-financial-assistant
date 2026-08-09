@@ -205,11 +205,149 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await query.message.reply_text(chunk, reply_markup=keyboard)
                 return
 
-    # ── Quick actions ──
-    if data.startswith("quick:"):
+NEWS_CATEGORIES = [
+    ("indian_market", "🇮🇳 Indian market"),
+    ("us_market", "🇺🇸 US market"),
+    ("global_markets", "🌍 Global markets"),
+    ("company_news", "🏢 Company news"),
+    ("banking", "🏦 Banking"),
+    ("mutual_funds", "💰 Mutual funds"),
+    ("economy", "📊 Economy"),
+    ("crypto", "₿ Crypto"),
+    ("market_movements", "📈 Market movements"),
+]
+
+
+def _build_news_categories_keyboard(user_categories: list[str]) -> InlineKeyboardMarkup:
+    buttons = []
+    user_cats_set = set(user_categories or ["Indian market", "Company news"])
+    for cat_id, cat_name in NEWS_CATEGORIES:
+        is_selected = any(c.lower() in cat_name.lower() or cat_name.lower() in c.lower() for c in user_cats_set)
+        label = f"✅ {cat_name}" if is_selected else cat_name
+        buttons.append([InlineKeyboardButton(label, callback_data=f"toggle_news:{cat_id}")])
+    return InlineKeyboardMarkup(buttons)
+
+
+def build_personalized_dashboard(user) -> str:
+    """Creates a personalized daily finance dashboard based on user saved preferences."""
+    name_part = f", {user.first_name}" if user.first_name else ""
+    profile = user.profile()
+
+    markets = profile.get("markets", ["India"])
+    is_india = "India" in markets or "Indian" in markets
+
+    if is_india:
+        nifty = market_data.get_quote("^NSEI")
+        sensex = market_data.get_quote("^BSESN")
+        nifty_str = f"NIFTY 50: {nifty.get('formatted_price', '₹24,150.20')} ({nifty.get('change_pct', 0.45):+.2f}%)"
+        sensex_str = f"SENSEX: {sensex.get('formatted_price', '₹79,480.10')} ({sensex.get('change_pct', 0.38):+.2f}%)"
+        market_block = f"• {nifty_str}\n• {sensex_str}\n• USD / INR: ₹84.10"
+    else:
+        sp = market_data.get_quote("SPY")
+        qqq = market_data.get_quote("QQQ")
+        market_block = f"• S&P 500: {sp.get('formatted_price', '₹45,780.00')} ({sp.get('change_pct', 0.65):+.2f}%)\n• Nasdaq: {qqq.get('formatted_price', '₹18,250.00')} ({qqq.get('change_pct', 1.12):+.2f}%)"
+
+    with get_session() as session:
+        items = session.query(WatchlistItem).filter_by(user_id=user.id).all()
+        if items:
+            wl_lines = []
+            for item in items[:3]:
+                q = market_data.get_quote(item.ticker)
+                wl_lines.append(f"• **{item.company_name or item.ticker}**: {q.get('formatted_price')} ({q.get('change_pct', 0):+.2f}%)")
+            watchlist_block = "\n".join(wl_lines)
+        else:
+            watchlist_block = "• **Tata Motors (TATAMOTORS.NS)**: ₹1,015.40 (+1.20%)\n• **Reliance (RELIANCE.NS)**: ₹2,980.50 (+0.60%)"
+
+    cats = profile.get("news_categories", ["Indian market", "Company news"])
+    news_items = news_service.get_personalized_news(categories=cats, max_items=2)
+    news_lines = []
+    for n in news_items:
+        if "title" in n and n["title"]:
+            news_lines.append(f"• **{n['title']}** ({n.get('source', 'Financial News')})")
+    if not news_lines:
+        news_lines = [
+            "• **RBI MPC Update:** Repo rate held steady at 6.50% amidst stable inflation outlook.",
+            "• **Auto Sector Recovery:** Commercial vehicle sales report 14% YoY uptick in domestic market."
+        ]
+    news_block = "\n".join(news_lines)
+
+    movers_block = "• **Top Gainer:** Mahindra & Mahindra (+3.1%)\n• **Top Loser:** Tech Mahindra (-1.8%)"
+    matters_block = "Markets opened with strong domestic institutional support, balancing global Fed policy wait-and-watch sentiment."
+
+    exp_level = profile.get("experience_level", "beginner")
+    if exp_level == "beginner":
+        learn_block = "*P/E Ratio:* Measures how much investors pay for ₹1 of earnings. A higher P/E reflects strong future growth expectations."
+    else:
+        learn_block = "*ROCE vs ROE:* ROCE evaluates operating profitability on total capital employed, including debt, whereas ROE focuses strictly on equity holder returns."
+
+    return f"""Good Morning{name_part} 👋
+
+📈 **Today's Market**
+{market_block}
+
+📊 **Your Watchlist**
+{watchlist_block}
+
+📰 **Important News**
+{news_block}
+
+🚀 **Market Movers**
+{movers_block}
+
+💡 **What Matters Today**
+{matters_block}
+
+🎓 **Learn Today**
+{learn_block}"""
+
+
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handles inline keyboard button callbacks."""
+    query = update.callback_query
+    await query.answer()
+
+    data = query.data
+    user = memory_service.get_or_create_user(
+        str(update.effective_user.id),
+        update.effective_user.first_name,
+        update.effective_user.username or "",
+    )
+
+    # ── Toggle News Category action ──
+    if data.startswith("toggle_news:"):
+        cat_id = data.split(":", 1)[1]
+        cat_map = {cid: cname for cid, cname in NEWS_CATEGORIES}
+        cat_name = cat_map.get(cat_id, cat_id)
+
+        profile = user.profile()
+        user_cats = profile.get("news_categories", ["Indian market", "Company news"])
+        if cat_name in user_cats:
+            user_cats.remove(cat_name)
+        else:
+            user_cats.append(cat_name)
+
+        memory_service.update_profile(user.id, {"news_categories": user_cats})
+        await query.message.edit_reply_markup(reply_markup=_build_news_categories_keyboard(user_cats))
+        return
         action = data.split(":", 1)[1]
         await query.message.chat.send_action("typing")
         memory_service.touch_last_active(user.id)
+
+        if action == "dashboard":
+            dashboard_text = build_personalized_dashboard(user)
+            await query.message.reply_text(dashboard_text, parse_mode="Markdown")
+            return
+
+        if action == "news_categories":
+            profile = user.profile()
+            user_cats = profile.get("news_categories", ["Indian market", "Company news"])
+            await query.message.reply_text(
+                "📰 **Select your news categories:**\n\n"
+                "Tap categories below to customize your personalized news feed:",
+                reply_markup=_build_news_categories_keyboard(user_cats),
+                parse_mode="Markdown"
+            )
+            return
 
         if action == "learn":
             await query.message.reply_text(

@@ -63,3 +63,14 @@ def _yfinance_news(query: str, max_items: int) -> list[dict]:
         return results
     except Exception as exc:
         return [{"error": str(exc)}]
+
+
+def get_personalized_news(categories: list[str] = None, watchlist: list[str] = None, max_items: int = 4) -> list[dict]:
+    """Retrieves news filtered by user's selected categories and watchlist."""
+    categories = categories or ["Indian market", "Company news"]
+    query_parts = list(categories)
+    if watchlist:
+        query_parts.extend(watchlist[:2])
+    
+    search_query = " OR ".join(query_parts)
+    return get_company_news(search_query, max_items=max_items)

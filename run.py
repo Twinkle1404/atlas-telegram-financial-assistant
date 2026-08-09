@@ -6,7 +6,7 @@ alerts, reminders) via APScheduler running inside the same asyncio loop.
 import logging
 import asyncio
 
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.config import settings
@@ -24,6 +24,9 @@ def build_application():
     # /start is the one unavoidable Telegram-native trigger to open a chat;
     # everything after it is natural conversation, no other commands exist.
     application.add_handler(CommandHandler("start", handlers.start_handler))
+
+    # Inline keyboard button presses (Learn Finance, Explain Simply, etc.)
+    application.add_handler(CallbackQueryHandler(handlers.callback_handler))
 
     application.add_handler(MessageHandler(filters.VOICE, handlers.voice_handler))
     application.add_handler(MessageHandler(filters.PHOTO, handlers.photo_handler))
@@ -54,7 +57,7 @@ def main():
     application.post_init = _post_init
 
     logger.info("Financial Assistant bot starting (polling mode)...")
-    application.run_polling(allowed_updates=["message"])
+    application.run_polling(allowed_updates=["message", "callback_query"])
 
 
 if __name__ == "__main__":

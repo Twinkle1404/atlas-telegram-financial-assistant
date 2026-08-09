@@ -56,7 +56,8 @@ def test_experience_level_adaptive_responses():
     from app.ai.llm_client import _smart_fallback_response
     from app.services import memory_service, conversation_service
 
-    user_id = 88888
+    user = memory_service.get_or_create_user("88888", "Test", "test")
+    user_id = user.id
     conversation_service.log_message(user_id, "user", "Tell me about Tata Motors")
     conversation_service.log_message(user_id, "assistant", "Tata Motors details.")
 

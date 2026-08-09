@@ -10,9 +10,11 @@ from app.ai import claude_client
 from app.services import memory_service, conversation_service
 
 # Heuristic cap so onboarding can't loop forever if the user just keeps chatting
-MAX_ONBOARDING_TURNS = 6
+MAX_ONBOARDING_TURNS = 10
 
-_DONE_SIGNALS = ("skip", "let's start", "lets start", "just start", "later", "no thanks")
+_DONE_SIGNALS = ("skip", "let's start", "lets start", "just start", "later",
+                 "no thanks", "done", "start", "finish", "that's it", "thats it",
+                 "move on", "let's go", "lets go", "enough", "all set")
 
 
 async def handle_onboarding_turn(user, text: str) -> tuple[str, bool]:
@@ -40,12 +42,12 @@ async def handle_onboarding_turn(user, text: str) -> tuple[str, bool]:
 
 
 def welcome_message(first_name: str) -> str:
-    name = f", {first_name}" if first_name else ""
+    name = f" {first_name}" if first_name else ""
     return (
-        f"Hey{name} — I'm your financial assistant. Think of me less like a bot and "
-        "more like an analyst on call: I track markets, research companies, read "
-        "filings and reports, and keep you briefed on what actually matters.\n\n"
-        "No forms to fill out — just talk to me. To get useful fast, mind telling me "
-        "a bit about what you do and what you're watching? (Totally skippable — just "
-        "say so and we can dive straight in.)"
+        f"Hey{name}! 👋 Welcome to Atlas — your personal AI financial assistant.\n\n"
+        "I'm here to help you understand markets, research companies, track your "
+        "watchlist, and learn about finance — all through natural conversation.\n\n"
+        "Before we dive in, I'd love to personalize your experience. "
+        "I'll ask a few quick questions (you can skip any of them).\n\n"
+        "Let's start simple — **what should I call you?** 😊"
     )

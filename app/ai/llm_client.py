@@ -179,82 +179,109 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
             hist = json.loads(dispatch_tool("get_historical_financials", {"ticker": target_ticker}, user_id))
             hs = json.loads(dispatch_tool("get_company_health_score", {"ticker": target_ticker}, user_id))
             comps = market_data.get_competitors(target_ticker)
-            comp_str = ", ".join([f"{c['name']} ({c['ticker']})" for c in comps[:3]])
+            comp_str = ", ".join([f"{c['name']}" for c in comps[:3]])
 
-            rows = [f"• **{item['year']}**: Revenue ₹{item['revenue_cr']:,.0f} Cr | Profit ₹{item['net_profit_cr']:,.0f} Cr ({item['margin_pct']}%) → {item['status']}" for item in hist.get("history", [])]
+            history_lines = []
+            for item in hist.get("history", []):
+                history_lines.append(f"• **{item['year']}**: Sales ₹{item['revenue_cr']:,.0f} Cr  |  Profit ₹{item['net_profit_cr']:,.0f} Cr  ({item['status']})")
 
-            return f"""🔍 **Deep-Dive Financial Research: {name} ({target_ticker})**
+            pe_val = fundamentals.get('pe_ratio', 'N/A')
+            margin_pct = f"{fundamentals.get('profit_margin', 0)*100:.1f}%" if fundamentals.get('profit_margin') else "N/A"
 
-📊 **Current Quote & Valuation:**
-• Price: {price_inr} ({change:+.2f}%) {change_emoji}
-• P/E Ratio: {fundamentals.get('pe_ratio', 'N/A')}x (Forward P/E: {fundamentals.get('forward_pe', 'N/A')}x)
-• Market Cap: {fundamentals.get('market_cap_formatted', 'N/A')}
-• Beta Volatility: {fundamentals.get('beta', 1.0)}
+            return f"""🔍 **Deep-Dive Research: {name} ({target_ticker})**
 
-💰 **5-Year Multi-Year P/L History:**
-{chr(10).join(rows)}
+🟢 **Current Stock Quote:** {price_inr} ({change:+.2f}% today)
 
-⭐ **AI Research Score Breakdown:**
-• **Overall Rating:** `{hs.get('overall_score')}/10`
-• Profitability: {hs.get('factors', {}).get('Profitability', 'N/A')}
-• Growth: {hs.get('factors', {}).get('Revenue Growth', 'N/A')}
-• Debt Position: {hs.get('factors', {}).get('Debt Position', 'N/A')}
+📖 **What this company does:**
+{name} is a leading enterprise in the {fundamentals.get('sector', 'General')} sector. It generates revenue primarily through its core business lines.
 
-🏢 **Top Competitors:** {comp_str}
+📊 **Key Metrics Explained:**
+• **Revenue (TTM):** {fundamentals.get('market_cap_formatted', 'N/A')}
+• **Net Margin:** {margin_pct} — *for every ₹100 earned, the company keeps {margin_pct} as pure profit.*
+• **P/E Ratio:** {pe_val}x — *tells you how much investors pay for ₹1 of earnings.*
 
-💡 **Executive Insight:** {hs.get('score_justification')}
-"""
+💰 **5-Year Profit & Loss Trend:**
+{chr(10).join(history_lines)}
+
+⭐ **AI Health Score:** `{hs.get('overall_score')}/10`
+• Profitability & cash flows remain healthy relative to industry peers.
+
+🏢 **Main Competitors:** {comp_str}
+
+💡 **Summary for Investors:**
+{hs.get('score_justification')}"""
 
         # Explain Simply
         if any(k in text_lower for k in ["explain simply", "simple", "beginner", "explain like"]):
+            margin_pct = f"{fundamentals.get('profit_margin', 0)*100:.1f}%" if fundamentals.get('profit_margin') else "N/A"
             return f"""🎓 **In Simple Terms: {name} ({target_ticker})**
 
-• **What does {name} do?** It is a major company in the {fundamentals.get('sector', 'General')} industry.
-• **Is it profitable?** Yes! It generated ₹{(fundamentals.get('revenue_ttm_inr') or 0)/1e7:,.0f} Cr in revenue with a net profit margin of {fundamentals.get('profit_margin', 0)*100:.1f}%.
-• **How is the stock performing?** The stock is at {price_inr} ({change:+.2f}% today).
-• **P/E Ratio explained:** Investors are paying ₹{fundamentals.get('pe_ratio', 25)} for every ₹1 of company earnings.
+🏢 **What is {name}?**
+It is a major company operating in the {fundamentals.get('sector', 'General')} industry.
 
-💡 *Takeaway:* {name} is a solid enterprise with steady margins. Check its AI Health Score or compare it with competitors to learn more!"""
+💰 **How does it make money?**
+• **Recent Sales:** Generated strong revenue over the past 12 months.
+• **Profit Margin ({margin_pct}):** For every ₹100 of sales, it retains about ₹{fundamentals.get('profit_margin', 0)*100:.0f} as profit.
+
+📈 **Stock Performance:**
+Currently trading at {price_inr} ({change:+.2f}% today) {change_emoji}.
+
+❓ **What does the P/E ratio ({fundamentals.get('pe_ratio', 25)}x) mean?**
+Think of P/E like price per slice of earnings. A higher P/E means investors expect fast growth ahead.
+
+💡 **Bottom Line:** {name} has steady profitability. Compare it with competitors or check its AI Health Score to see more!"""
 
         # Why does this matter?
         if any(k in text_lower for k in ["why does this matter", "why matters", "why matter"]):
-            return f"""❓ **Why {name} ({target_ticker}) Financials Matter for Investors**
+            margin_pct = f"{fundamentals.get('profit_margin', 0)*100:.1f}%" if fundamentals.get('profit_margin') else "N/A"
+            return f"""❓ **Why {name} ({target_ticker}) Financials Matter to You**
 
-1. **Profitability Trend:** Shows whether the company is growing sustainably or losing money.
-2. **Valuation (P/E {fundamentals.get('pe_ratio', 'N/A')}x):** Helps you determine if the stock is expensive or fairly priced compared to competitors.
-3. **Competitive Edge:** High profit margins ({fundamentals.get('profit_margin', 0)*100:.1f}%) indicate strong pricing power in its sector.
+1️⃣ **Profitability ({margin_pct}):**
+High profit margins mean the company has strong pricing power and handles rising costs well.
 
-💡 *Next Step:* Tap **"🏢 Compare Competitors"** below to see how {name} stacks up against industry rivals!"""
+2️⃣ **Valuation (P/E {fundamentals.get('pe_ratio', 'N/A')}x):**
+tells you whether you are paying a bargain price or a premium for future growth.
+
+3️⃣ **Competitor Standing:**
+Comparing {name} with peers reveals whether it is losing or gaining market share.
+
+💡 **Next Step:** Tap **"🏢 Compare Competitors"** below to see how {name} compares to its rivals!"""
 
         # Profit & Loss history check
         if any(k in text_lower for k in ["profit", "loss", "p&l", "historical", "trend", "turning point", "history"]):
             hist = json.loads(dispatch_tool("get_historical_financials", {"ticker": target_ticker}, user_id))
-            rows = [f"• **{item['year']}**: Revenue ₹{item['revenue_cr']:,.0f} Cr | Profit ₹{item['net_profit_cr']:,.0f} Cr ({item['margin_pct']}%) → {item['status']}" for item in hist.get("history", [])]
-            turning_text = "\n".join([f"- {t}" for t in hist.get("turning_points", [])])
+            history_lines = []
+            for item in hist.get("history", []):
+                history_lines.append(f"• **{item['year']}**: Sales ₹{item['revenue_cr']:,.0f} Cr  |  Net Profit ₹{item['net_profit_cr']:,.0f} Cr  →  {item['status']}")
 
-            return f"""📊 **Profit & Loss History & Timeline: {name} ({target_ticker})**
+            turning_text = "\n".join([f"• {t}" for t in hist.get("turning_points", [])])
+
+            return f"""📊 **Profit & Loss History: {name} ({target_ticker})**
 
 💰 **5-Year Financial Progression:**
-{chr(10).join(rows)}
+{chr(10).join(history_lines)}
 
-🗓️ **What Changed? (Milestone Timeline):**
+🗓️ **What Changed Over Time?**
 {turning_text}
 
-💡 *In simple terms:* {name} transitioned from early cost challenges to strong profitability as market demand and operational efficiency improved."""
+💡 **What this means:**
+{name} successfully improved its profitability through cost discipline and expanding sales volume."""
 
         # AI Health Score check
         if any(k in text_lower for k in ["health", "score", "rating", "rank"]):
             hs = json.loads(dispatch_tool("get_company_health_score", {"ticker": target_ticker}, user_id))
             factor_lines = "\n".join([f"• **{k}**: {v}" for k, v in hs.get("factors", {}).items()])
-            return f"""⭐ **AI Research Score: {name} ({target_ticker})**
+            return f"""⭐ **AI Health Score: {name} ({target_ticker})**
 
-🏆 **Overall Score:** `{hs.get('overall_score')}/10`
+🏆 **Overall Rating:** `{hs.get('overall_score')}/10`
 
-📊 **5-Factor Breakdown:**
+📊 **Score Breakdown:**
 {factor_lines}
 
 💡 **Why this score?**
-{hs.get('score_justification')}"""
+{hs.get('score_justification')}
+
+⚠️ *Disclaimer:* {hs.get('disclaimer')}"""
 
         # Default clean financial summary if specific financial keywords used
         has_financial_question = any(k in text_lower for k in [
@@ -272,29 +299,30 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
 
             return f"""{change_emoji} **{name}** ({target_ticker}) — {price_inr} ({change:+.2f}%)
 
-📊 **Key Financials**
-• Revenue (TTM): {rev_str}
-• Net Margin: {profit_margin}
-• P/E Ratio: {pe}x
-• Market Cap: {mcap_str}
-• Sector: {fundamentals.get('sector', 'Technology')}
+📊 **Key Financials:**
+• **Revenue (Sales):** {rev_str}
+• **Net Margin:** {profit_margin} *(profit kept per ₹100 sales)*
+• **P/E Ratio:** {pe}x *(price per ₹1 of earnings)*
+• **Market Cap:** {mcap_str}
+• **Sector:** {fundamentals.get('sector', 'Technology')}
 
-💡 {name} {"is trading near recent highs" if change > 0 else "has seen recent price consolidation"}. {"Strong margins suggest solid business quality." if fundamentals.get('profit_margin', 0) > 0.15 else "Margins are worth monitoring."}"""
+💡 **Analysis:**
+{name} {"is trading near recent highs" if change > 0 else "has seen price consolidation"}. {"Strong margins indicate solid profitability." if fundamentals.get('profit_margin', 0) > 0.15 else "Margins are worth monitoring."}"""
 
-        # Pure company name entry — show research menu
-        return f"""Sure! **{name}** is at {price_inr} ({change:+.2f}% today) {change_emoji}
+        # Pure company name entry — show clean research menu
+        return f"""Sure! **{name}** is trading at {price_inr} ({change:+.2f}% today) {change_emoji}
 
-What would you like to know?
+What would you like to explore about **{name}**?
 
 🔎 **Full Research** — complete company analysis
-💰 **Profit & Loss** — 5-year revenue, margins, earnings history
-📈 **Stock Performance** — price history & movements
-⭐ **AI Health Score** — 5-factor 0-10 research score
-🏢 **Competitors** — rival companies comparison
-⚠️ **Risks** — business & financial risks
+💰 **Profit & Loss** — 5-year revenue & profit history
+📈 **Stock Performance** — price movements & trends
+⭐ **AI Health Score** — 5-factor 0-10 rating
+🏢 **Competitors** — industry peer comparison
+⚠️ **Risks** — key business & financial risks
 🎓 **Explain Simply** — beginner-friendly overview
 
-Just pick one or ask me anything about {name}!"""
+Just pick an option below or ask me anything!"""
 
     # 3. Portfolio Analytics Check
     if any(c.isdigit() for c in user_text) and any(k in text_lower for k in ["hold", "shares", "portfolio", "aapl", "nvda", "spy"]):

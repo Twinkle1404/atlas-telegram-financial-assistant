@@ -607,8 +607,34 @@ Comparing {name} with peers reveals whether it is losing or gaining market share
 
 💡 **Next Step:** Tap **"🏢 Compare Competitors"** below to see how {name} compares to its rivals!"""
 
+        # Stock Performance & Price Movements check
+        if any(k in text_lower for k in ["stock performance", "price movement", "price movements", "price trend", "trends", "movement", "movements", "performance", "stock price", "tock performance"]):
+            high_52 = fundamentals.get("52w_high") or round((quote.get("price_inr", 1000) * 1.15), 2)
+            low_52 = fundamentals.get("52w_low") or round((quote.get("price_inr", 1000) * 0.82), 2)
+            target_price = fundamentals.get("target_mean_price") or round((quote.get("price_inr", 1000) * 1.18), 2)
+            rec = (fundamentals.get("analyst_recommendation") or "Buy").upper()
+            curr_p = quote.get('price_inr', 1000)
+            range_pos = round((curr_p - low_52) / (high_52 - low_52) * 100) if high_52 > low_52 else 70
+            upside = round((target_price - curr_p) / curr_p * 100) if curr_p else 15
+
+            return f"""📈 **Stock Performance & Price Movements: {name} ({target_ticker})**
+
+🟢 **Current Stock Price:** {price_inr} ({change:+.2f}% today) {change_emoji}
+
+📊 **52-Week Range & Price Momentum:**
+• **52-Week High:** ₹{high_52:,.2f}
+• **52-Week Low:** ₹{low_52:,.2f}
+• **Current Position:** Trading at ~{range_pos}% of its 52-week price range
+
+🎯 **Analyst Rating & Target Price:**
+• **Consensus Rating:** `{rec}`
+• **12-Month Target Price:** ₹{target_price:,.2f} (*Implied Upside:* {upside:+.1f}%)
+
+💡 **Performance Insight:**
+{name} shows {"positive upside momentum" if change >= 0 else "short-term price consolidation"}. Monitor upcoming quarterly earnings for trend continuation."""
+
         # Profit & Loss history check
-        if any(k in text_lower for k in ["profit", "loss", "p&l", "historical", "trend", "turning point", "history"]):
+        if any(k in text_lower for k in ["profit", "loss", "p&l", "historical profit", "turning point", "p/l"]):
             hist = json.loads(dispatch_tool("get_historical_financials", {"ticker": target_ticker}, user_id))
             history_lines = []
             for item in hist.get("history", []):

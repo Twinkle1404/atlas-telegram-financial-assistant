@@ -123,22 +123,43 @@ def _build_welcome_back(user) -> str:
     return "\n".join(lines)
 
 
+def build_smart_empty_state(user) -> tuple[str, InlineKeyboardMarkup]:
+    """Generates a personalized empty state greeting with dynamic suggestion buttons."""
+    name = f", {user.first_name}" if user.first_name else ""
+    profile = user.profile()
+
+    # Determine user's primary market
+    markets = profile.get("markets", ["India"])
+    if "India" in markets:
+        market_label = "Indian"
+    elif "US" in markets:
+        market_label = "US"
+    else:
+        market_label = "Global"
+
+    # Determine user's top company / watchlist item
+    watchlist = profile.get("watchlist_context", [])
+    top_company = watchlist[0] if watchlist else "Tata Motors"
+
+    msg = f"What would you like to explore today{name}? 👋\n\nPick a suggestion below or type anything to get started:"
+
+    buttons = [
+        [InlineKeyboardButton(f"📈 What's happening in the {market_label} market today?", callback_data="quick:market")],
+        [InlineKeyboardButton(f"🏢 Research {top_company}", callback_data=f"research:{top_company}")],
+        [InlineKeyboardButton("📊 Explain P/E ratio", callback_data="learn:pe_eps")],
+        [InlineKeyboardButton("📰 Show me today's important finance news", callback_data="quick:news")],
+        [InlineKeyboardButton("⚖️ Compare Tata Motors and Mahindra", callback_data="research:TATAMOTORS.NS vs M&M.NS")],
+        [InlineKeyboardButton("🎓 Teach me something about investing", callback_data="quick:learn")],
+    ]
+
+    return msg, InlineKeyboardMarkup(buttons)
+
+
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = _get_user(update)
     if user.onboarding_stage == "done":
-        msg = await asyncio.to_thread(_build_welcome_back, user)
-        # Add quick action buttons for returning users
-        keyboard = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("📈 Market Update", callback_data="quick:market"),
-                InlineKeyboardButton("📰 Today's News", callback_data="quick:news"),
-            ],
-            [
-                InlineKeyboardButton("🎓 Learn Finance", callback_data="quick:learn"),
-                InlineKeyboardButton("⚙️ My Preferences", callback_data="quick:preferences"),
-            ],
-        ])
-        await update.message.reply_text(msg, reply_markup=keyboard)
+        msg, keyboard = build_smart_empty_state(user)
+        await update.message.reply_text(msg, reply_markup=keyboard, parse_mode="Markdown")
         return
     await update.message.reply_text(onboarding.welcome_message(user.first_name))
     conversation_service.log_message(user.id, "assistant", onboarding.welcome_message(user.first_name))

@@ -117,7 +117,7 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
     """Generates structured financial research, stock market analysis, P&L, stock quote,
     or portfolio report directly when external API key is unconfigured or encounters disruptions."""
     from app.ai.tools import dispatch_tool
-    from app.services import conversation_service, memory_service
+    from app.services import conversation_service, memory_service, market_data
     text_lower = user_text.lower().strip()
 
     # Detect user's preferred language style or auto-detect from input text
@@ -182,7 +182,7 @@ NIFTY aaj mainly banking aur IT stocks mein selling pressure ki wajah se gira.
             pass
 
     # 2. Company Research & Action Deep-Dives
-    if target_ticker or any(k in text_lower for k in ["profit", "loss", "revenue", "financials", "quarter", "earnings", "deep-dive", "explain simply", "why does this matter"]):
+    if target_ticker or any(k in text_lower for k in ["profit", "loss", "revenue", "financials", "quarter", "earnings", "deep-dive", "explain simply", "why does this matter", "risk", "risky", "competitor", "competitors", "peer", "peers"]):
         if not target_ticker:
             target_ticker = "AMZN"
 
@@ -192,6 +192,37 @@ NIFTY aaj mainly banking aur IT stocks mein selling pressure ki wajah se gira.
         price_inr = quote.get("formatted_price") or f"₹{quote.get('price_inr', 0):,.2f}"
         change = quote.get('change_pct', 0)
         change_emoji = "🟢" if change >= 0 else "🔴"
+
+        # Risk Analysis check ("Is it risky?", "What are the risks?")
+        if any(k in text_lower for k in ["risk", "risky", "drawback", "danger"]):
+            beta = fundamentals.get('beta', 1.1)
+            pe = fundamentals.get('pe_ratio', 'N/A')
+            sector = fundamentals.get('sector', 'General')
+            volatility_desc = "higher volatility" if beta > 1.2 else "moderate market stability"
+
+            return f"""⚠️ **Risk Analysis: {name} ({target_ticker})**
+
+📌 **Key Risk Factors to Consider:**
+1. **Market & Industry Cycle:** Demand shifts in the {sector} sector can impact revenue growth during economic slowdowns.
+2. **Valuation Risk (P/E {pe}x):** Stock price reflects high growth expectations. Any earnings miss could trigger short-term price pullbacks.
+3. **Volatility (Beta {beta}):** Demonstrates {volatility_desc} relative to the broader index.
+
+💡 **Investor Takeaway:** {name} is a established company, but investors should be aware of broader industry cycles and valuation levels before making decisions."""
+
+        # Competitors check ("What about its competitors?", "Who are rivals?")
+        if any(k in text_lower for k in ["competitor", "competitors", "rival", "rivals", "peer", "peers"]):
+            comps = market_data.get_competitors(target_ticker)
+            comp_list = []
+            for c in comps:
+                comp_list.append(f"• **{c['name']}** ({c['ticker']})")
+
+            return f"""🏢 **Competitor Overview: {name} ({target_ticker})**
+
+Main industry rivals in the {fundamentals.get('sector', 'General')} sector:
+{chr(10).join(comp_list)}
+
+💡 **Peer Insight:**
+{name} operates alongside these major companies. Click any competitor below to compare metrics side-by-side!"""
 
         # Deep-dive / Go deeper / Tell me more
         if any(k in text_lower for k in ["deep-dive", "go deeper", "tell me more", "more details", "expand", "detailed"]):

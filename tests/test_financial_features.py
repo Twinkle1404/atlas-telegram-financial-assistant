@@ -21,3 +21,22 @@ def test_get_competitors():
     assert len(comps) >= 2
     tickers = [c["ticker"] for c in comps]
     assert "MARUTI.NS" in tickers or "M&M.NS" in tickers
+
+
+def test_conversational_context_fallback():
+    from app.ai.llm_client import _smart_fallback_response
+    from app.services import conversation_service
+
+    user_id = 99999
+    # Simulate first turn discussing Tata Motors
+    conversation_service.log_message(user_id, "user", "Tell me about Tata Motors")
+    conversation_service.log_message(user_id, "assistant", "Tata Motors is a leading auto company.")
+
+    # Second turn using pronoun "Is it risky?"
+    res_risk = _smart_fallback_response("Is it risky?", user_id)
+    assert "Risk Analysis" in res_risk or "Tata" in res_risk or "TATAMOTORS" in res_risk
+
+    # Third turn using "What about its competitors?"
+    res_comp = _smart_fallback_response("What about its competitors?", user_id)
+    assert "Competitor Overview" in res_comp or "Competitor" in res_comp
+

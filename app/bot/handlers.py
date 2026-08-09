@@ -410,8 +410,16 @@ _To change any preference, just tell me naturally — e.g. "change my language t
         for c in comps:
             comp_buttons.append([InlineKeyboardButton(f"🔍 Research {c['name']} ({c['ticker']})", callback_data=f"research:{c['ticker']}")])
 
-        comp_names = ", ".join([f"{c['name']} ({c['ticker']})" for c in comps])
-        msg = f"🏢 **Competitor Research for {ticker}**\n\nTop industry peers for {ticker}:\n• {comp_names}\n\nClick any competitor below to compare:"
+        comp_buttons.append([InlineKeyboardButton("💡 Why Profitability Differs", callback_data=f"action:why_differs:{ticker}")])
+        comp_buttons.append([InlineKeyboardButton("⚠️ Key Risk Factors", callback_data=f"action:risk:{ticker}")])
+
+        comp_names = "\n".join([f"• **{c['name']}** ({c['ticker']})" for c in comps])
+        msg = f"""🏢 **Competitor Research: {ticker}**
+
+Top industry peers:
+{comp_names}
+
+❓ **Would you like to understand why their profitability differs?**"""
         await query.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(comp_buttons), parse_mode="Markdown")
         return
 
@@ -457,7 +465,7 @@ _To change any preference, just tell me naturally — e.g. "change my language t
             await query.message.reply_text(chunk, reply_markup=_build_followup_keyboard(ticker=target))
         return
 
-    # ── Explain/Deepen actions ──
+    # ── Explain/Deepen & Guided Research actions ──
     if data.startswith("action:"):
         parts = data.split(":", 2)
         action_type = parts[1] if len(parts) > 1 else ""
@@ -466,13 +474,20 @@ _To change any preference, just tell me naturally — e.g. "change my language t
         await query.message.chat.send_action("typing")
         memory_service.touch_last_active(user.id)
 
-        # Get the message that the button was attached to as context
         original_text = query.message.text or ""
+        ticker = context_hint or "TATAMOTORS.NS"
+
         action_prompts = {
             "explain_simply": f"Take your previous response and re-explain it in the simplest possible way, like I'm completely new to finance. Use everyday analogies. Here's what you said:\n\n{original_text[:500]}",
             "tell_more": f"Expand on your previous response with more details, additional context, and deeper analysis. Here's what you said:\n\n{original_text[:500]}",
             "why_matters": f"Explain WHY the information in your previous response actually matters to an everyday investor. What should they pay attention to and what decisions could this inform? Here's what you said:\n\n{original_text[:500]}",
             "go_deeper": f"Provide an advanced, technical deep-dive on your previous response. Include specific metrics, ratios, comparisons, and technical analysis. Here's what you said:\n\n{original_text[:500]}",
+            "profit_loss": f"Show 5-year historical revenue, net profit, profit margins, and key milestone turning points for {ticker}.",
+            "why_differs": f"Explain why the profitability, business model, and profit margins of {ticker} differ from its main competitors.",
+            "risk": f"What are the key risk factors, market vulnerabilities, beta volatility, and drawbacks for {ticker}?",
+            "full_research": f"Give me full comprehensive research report on {ticker} covering business overview, financials, valuation, and outlook.",
+            "stock": f"What is the current stock quote, 52-week range, day change, and analyst target price for {ticker}?",
+            "news": f"What are the latest high-impact news developments and market events for {ticker}?",
         }
 
         prompt = action_prompts.get(action_type, f"Tell me more about: {original_text[:200]}")
@@ -482,9 +497,29 @@ _To change any preference, just tell me naturally — e.g. "change my language t
             claude_client.generate_reply, user.id, user.profile(), history, prompt
         )
         reply = trim_for_telegram(reply)
-        conversation_service.log_message(user.id, "assistant", reply)
-        for chunk in chunk_for_telegram(reply):
-            await query.message.reply_text(chunk, reply_markup=_build_followup_keyboard(context_hint))
+
+        # Guided Next-Step Question & Keyboard
+        if action_type == "profit_loss":
+            guided_suffix = f"\n\n❓ **Would you like to compare {ticker} with its competitors?**"
+            guided_kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton(f"⚖️ Compare {ticker} Competitors", callback_data=f"comp:{ticker}")],
+                [InlineKeyboardButton("💡 Why Profitability Differs", callback_data=f"action:why_differs:{ticker}")],
+                [InlineKeyboardButton("⭐ AI Health Score", callback_data=f"score:{ticker}")],
+            ])
+        elif action_type == "why_differs":
+            guided_suffix = f"\n\n❓ **Would you like to examine key risk factors or take a quick lesson on Margin Analysis?**"
+            guided_kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton("⚠️ Key Risk Factors", callback_data=f"action:risk:{ticker}")],
+                [InlineKeyboardButton("🎓 Margin Analysis Lesson", callback_data="learn:revenue_profit")],
+            ])
+        else:
+            guided_suffix = ""
+            guided_kb = _build_followup_keyboard(context_hint, ticker=ticker)
+
+        full_reply = reply + guided_suffix
+        conversation_service.log_message(user.id, "assistant", full_reply)
+        for chunk in chunk_for_telegram(full_reply):
+            await query.message.reply_text(chunk, reply_markup=guided_kb, parse_mode="Markdown")
         return
 
 

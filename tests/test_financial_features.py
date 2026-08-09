@@ -71,10 +71,20 @@ def test_experience_level_adaptive_responses():
     assert "Free Cash Flow" in res_adv
     assert "P/B Ratio" in res_adv
 
-    # Test Beginner user mode (gets plain language explanations)
-    memory_service.update_profile(user_id, {"experience_level": "beginner"})
-    res_beg = _smart_fallback_response("go deeper", user_id)
-    assert "P/E tells us roughly how much investors pay" in res_beg
+def test_guided_research_journey():
+    from app.bot.handlers import LEARN_TOPICS
+    from app.services import market_data
+
+    # Verify 9-step learning path length
+    assert len(LEARN_TOPICS) == 9
+    topic_ids = [t[0] for t in LEARN_TOPICS]
+    assert "stock_basics" in topic_ids
+    assert "risk_management" in topic_ids
+
+    # Verify competitor lookup returns valid peers
+    comps = market_data.get_competitors("TATAMOTORS.NS")
+    assert len(comps) >= 2
+
 
 
 

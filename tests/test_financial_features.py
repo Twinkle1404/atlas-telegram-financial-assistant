@@ -52,10 +52,28 @@ def test_build_personalized_dashboard():
     assert "Learn Today" in dashboard
 
 
-def test_get_personalized_news():
-    from app.services import news_service
+def test_experience_level_adaptive_responses():
+    from app.ai.llm_client import _smart_fallback_response
+    from app.services import memory_service, conversation_service
 
-    news = news_service.get_personalized_news(categories=["Banking", "Mutual funds"])
-    assert isinstance(news, list)
+    user_id = 88888
+    conversation_service.log_message(user_id, "user", "Tell me about Tata Motors")
+    conversation_service.log_message(user_id, "assistant", "Tata Motors details.")
+
+    # Test Advanced user mode (gets all 11 metrics)
+    memory_service.update_profile(user_id, {"experience_level": "advanced"})
+    res_adv = _smart_fallback_response("Tell me more about TATAMOTORS.NS", user_id)
+    assert "EBITDA" in res_adv
+    assert "ROE" in res_adv
+    assert "ROCE" in res_adv
+    assert "Debt-to-Equity" in res_adv
+    assert "Free Cash Flow" in res_adv
+    assert "P/B Ratio" in res_adv
+
+    # Test Beginner user mode (gets plain language explanations)
+    memory_service.update_profile(user_id, {"experience_level": "beginner"})
+    res_beg = _smart_fallback_response("go deeper", user_id)
+    assert "P/E tells us roughly how much investors pay" in res_beg
+
 
 

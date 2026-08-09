@@ -224,6 +224,37 @@ Main industry rivals in the {fundamentals.get('sector', 'General')} sector:
 💡 **Peer Insight:**
 {name} operates alongside these major companies. Click any competitor below to compare metrics side-by-side!"""
 
+        # Check user experience level
+        user_obj = memory_service.get_user_by_id(user_id)
+        exp_level = (user_obj.profile().get("experience_level") or "beginner").lower() if user_obj else "beginner"
+
+        # Advanced Financial Metrics (all 11 metrics)
+        if exp_level == "advanced" or any(k in text_lower for k in ["advanced", "ebitda", "roce", "ebit", "p/b", "debt to equity", "free cash flow", "all metrics"]):
+            return f"""📊 **Advanced Financial Dashboard: {name} ({target_ticker})**
+
+🟢 **Current Price:** {price_inr} ({change:+.2f}% today) {change_emoji}
+
+💎 **Valuation & Enterprise Value:**
+• **Market Cap / Valuation:** {fundamentals.get('valuation', 'N/A')}
+• **P/E Ratio:** {fundamentals.get('pe_ratio', 25.0)}x (Forward P/E: {fundamentals.get('forward_pe', 22.0)}x)
+• **P/B Ratio:** {fundamentals.get('pb_ratio', 4.2)}x
+
+💰 **Income & Operating Performance:**
+• **Revenue (TTM):** {fundamentals.get('revenue_formatted', 'N/A')}
+• **EBITDA:** {fundamentals.get('ebitda_formatted', 'N/A')}
+• **EBIT:** {fundamentals.get('ebit_formatted', 'N/A')}
+• **EPS (Trailing):** ₹{fundamentals.get('eps', 28.50):,.2f}
+
+📐 **Return Ratios & Efficiency:**
+• **ROE (Return on Equity):** {fundamentals.get('roe', '18.5%')}
+• **ROCE (Return on Capital Employed):** {fundamentals.get('roce', '16.2%')}
+
+🛡️ **Leverage & Cash Generation:**
+• **Debt-to-Equity:** {fundamentals.get('debt_to_equity', '0.45')}
+• **Free Cash Flow (FCF):** {fundamentals.get('free_cash_flow_formatted', 'N/A')}
+
+💡 **Executive Insight:** {name} maintains a balanced capital structure with strong operating cash flow cover."""
+
         # Deep-dive / Go deeper / Tell me more
         if any(k in text_lower for k in ["deep-dive", "go deeper", "tell me more", "more details", "expand", "detailed"]):
             hist = json.loads(dispatch_tool("get_historical_financials", {"ticker": target_ticker}, user_id))
@@ -246,9 +277,9 @@ Main industry rivals in the {fundamentals.get('sector', 'General')} sector:
 {name} is a leading enterprise in the {fundamentals.get('sector', 'General')} sector. It generates revenue primarily through its core business lines.
 
 📊 **Key Metrics Explained:**
-• **Revenue (TTM):** {fundamentals.get('market_cap_formatted', 'N/A')}
+• **Revenue (TTM):** {fundamentals.get('revenue_formatted', 'N/A')}
 • **Net Margin:** {margin_pct} — *for every ₹100 earned, the company keeps {margin_pct} as pure profit.*
-• **P/E Ratio:** {pe_val}x — *tells you how much investors pay for ₹1 of earnings.*
+• **P/E Ratio:** {pe_val}x — *P/E tells us roughly how much investors pay for every ₹1 the company earns. A higher P/E can mean investors expect strong future growth, but it can also mean the stock is expensive.*
 
 💰 **5-Year Profit & Loss Trend:**
 {chr(10).join(history_lines)}

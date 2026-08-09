@@ -170,7 +170,79 @@ Master financial concepts step-by-step from beginner to advanced:
 
 💡 *Tap any topic button in **Learn Finance** to get a 60-second lesson!*"""
 
+    # 0d. Concept / "What is X" educational questions
+    concept_answers = {
+        "sensex": """📊 **What is SENSEX?**
+
+The **SENSEX** (Sensitive Index) is the benchmark stock market index of the **Bombay Stock Exchange (BSE)**, India's oldest stock exchange.
+
+📌 **Key Facts:**
+• Tracks **30 of India's largest & most actively traded companies** across sectors
+• Includes companies like Reliance, TCS, HDFC Bank, Infosys, ICICI Bank
+• Created in **1986** with a base year of 1978-79 (base value = 100)
+• A rising Sensex means Indian markets are doing well overall
+
+💡 **Think of it as:** India's stock market health meter — when Sensex goes up, it means the top 30 companies are growing in value.
+
+📈 **Sensex vs Nifty:** Sensex tracks 30 BSE stocks, Nifty tracks 50 NSE stocks. Both measure the Indian market, Nifty is slightly broader.""",
+        "nifty": """📊 **What is NIFTY 50?**
+
+The **NIFTY 50** is the flagship index of the **National Stock Exchange (NSE)** of India.
+
+📌 **Key Facts:**
+• Tracks the **top 50 companies** listed on NSE by market capitalization
+• Covers ~13 sectors of the Indian economy
+• Managed by **NSE Indices Limited** (formerly India Index Services & Products)
+• Base year: 1995, Base value: 1,000
+
+💡 **Think of it as:** If you bought tiny pieces of India's 50 biggest companies, Nifty tells you how that basket is performing.
+
+📈 **Current level:** Check by typing 'Indian market update' for live data!""",
+        "mutual fund": """💰 **What is a Mutual Fund?**
+
+A **mutual fund** pools money from many investors to buy a diversified basket of stocks, bonds, or other securities.
+
+📌 **How it works:**
+• You invest ₹500–₹10,000/month via **SIP** (Systematic Investment Plan)
+• A professional **fund manager** picks the stocks for you
+• Your returns depend on how the basket of investments performs
+
+📊 **Types:** Equity funds (stocks), Debt funds (bonds), Hybrid (mix), Index funds (track Nifty/Sensex)
+
+💡 **Great for beginners** who want stock market exposure without picking individual stocks.""",
+        "ipo": """📊 **What is an IPO?**
+
+An **IPO (Initial Public Offering)** is when a private company sells shares to the public for the first time.
+
+📌 **How it works:**
+• Company decides to "go public" to raise money
+• Sets a price range for shares (e.g., ₹300-₹350)
+• Investors apply during the subscription period
+• If oversubscribed, shares are allotted by lottery
+
+💡 **Think of it as:** A company opening its doors for anyone to become a part-owner by buying shares.""",
+        "dividend": """💰 **What is a Dividend?**
+
+A **dividend** is a portion of a company's profits paid directly to shareholders.
+
+📌 **Key Facts:**
+• Paid per share (e.g., ₹5 per share)
+• Usually paid quarterly or annually
+• Not all companies pay dividends — growth companies often reinvest profits instead
+
+💡 **Think of it as:** Your share of the company's profits, like rent from owning property.""",
+        "bear market": "A **bear market** is when stock prices fall 20%+ from recent highs. It signals widespread pessimism. Bear markets are temporary — historically, every bear market has been followed by a recovery.",
+        "bull market": "A **bull market** is when stock prices rise 20%+ from recent lows. It signals investor optimism and economic growth. India has experienced several strong bull runs driven by IT, banking, and infrastructure growth.",
+    }
+    # Check for concept questions like "what is sensex", "explain sensex", "sensex kya hai"
+    is_concept_question = any(k in text_lower for k in ["what is", "what are", "explain", "define", "meaning of", "kya hai", "kya hota"])
+    for concept_key, concept_answer in concept_answers.items():
+        if concept_key in text_lower:
+            if is_concept_question or not any(k in text_lower for k in ["price", "stock", "buy", "sell", "quote", "today"]):
+                return concept_answer
+
     known_tickers = {
+        # US companies
         "apple": "AAPL", "aapl": "AAPL",
         "amazon": "AMZN", "amzn": "AMZN",
         "nvidia": "NVDA", "nvda": "NVDA",
@@ -180,25 +252,84 @@ Master financial concepts step-by-step from beginner to advanced:
         "meta": "META", "facebook": "META",
         "netflix": "NFLX", "nflx": "NFLX",
         "amd": "AMD", "intel": "INTC", "boeing": "BA",
-        "reliance": "RELIANCE.NS", "tata": "TATAMOTORS.NS", "tatamotors": "TATAMOTORS.NS",
+        "spy": "SPY",
+        # Indian companies — broad coverage
+        "reliance": "RELIANCE.NS", "ril": "RELIANCE.NS",
+        "tata motors": "TATAMOTORS.NS", "tatamotors": "TATAMOTORS.NS", "tata": "TATAMOTORS.NS",
+        "tata steel": "TATASTEEL.NS", "tatasteel": "TATASTEEL.NS",
+        "tata power": "TATAPOWER.NS",
         "tcs": "TCS.NS", "infosys": "INFY.NS", "infy": "INFY.NS",
-        "wipro": "WIPRO.NS", "hdfc": "HDFCBANK.NS", "icici": "ICICIBANK.NS", "sbi": "SBIN.NS",
-        "spy": "SPY"
+        "wipro": "WIPRO.NS",
+        "hcl": "HCLTECH.NS", "hcltech": "HCLTECH.NS",
+        "hdfc": "HDFCBANK.NS", "hdfc bank": "HDFCBANK.NS", "hdfcbank": "HDFCBANK.NS",
+        "icici": "ICICIBANK.NS", "icici bank": "ICICIBANK.NS",
+        "sbi": "SBIN.NS", "state bank": "SBIN.NS",
+        "kotak": "KOTAKBANK.NS", "kotak bank": "KOTAKBANK.NS",
+        "axis bank": "AXISBANK.NS", "axis": "AXISBANK.NS",
+        "bajaj finance": "BAJFINANCE.NS", "bajaj finserv": "BAJAJFINSV.NS",
+        "bajaj auto": "BAJAJ-AUTO.NS",
+        "adani gas": "ATGL.NS", "adani total gas": "ATGL.NS",
+        "adani": "ADANIENT.NS", "adani enterprises": "ADANIENT.NS",
+        "adani ports": "ADANIPORTS.NS", "adani power": "ADANIPOWER.NS",
+        "adani green": "ADANIGREEN.NS",
+        "asian paints": "ASIANPAINT.NS", "asianpaint": "ASIANPAINT.NS",
+        "maruti": "MARUTI.NS", "maruti suzuki": "MARUTI.NS",
+        "mahindra": "M&M.NS", "m&m": "M&M.NS",
+        "larsen": "LT.NS", "l&t": "LT.NS", "lt": "LT.NS",
+        "itc": "ITC.NS",
+        "hindustan unilever": "HINDUNILVR.NS", "hul": "HINDUNILVR.NS",
+        "bharti airtel": "BHARTIARTL.NS", "airtel": "BHARTIARTL.NS",
+        "jio": "JIOFINANCE.NS", "jio financial": "JIOFINANCE.NS",
+        "sun pharma": "SUNPHARMA.NS", "sunpharma": "SUNPHARMA.NS",
+        "dr reddy": "DRREDDY.NS", "cipla": "CIPLA.NS",
+        "zomato": "ZOMATO.NS", "paytm": "PAYTM.NS",
+        "ongc": "ONGC.NS", "ntpc": "NTPC.NS", "power grid": "POWERGRID.NS",
+        "coal india": "COALINDIA.NS",
+        "ultratech": "ULTRACEMCO.NS", "ultratech cement": "ULTRACEMCO.NS",
+        "titan": "TITAN.NS", "nestle": "NESTLEIND.NS",
+        "vedanta": "VEDL.NS", "hindalco": "HINDALCO.NS",
+        "jsw steel": "JSWSTEEL.NS", "jsw": "JSWSTEEL.NS",
     }
 
-    # 1. Ticker Extraction — Check prompt text first, then check recent conversation history
+    # 1. Ticker Extraction — match multi-word names first, then single words
     words = [w.strip(".,!?\"'()") for w in user_text.split()]
     target_ticker = None
-    for w in words:
-        if w.lower() in known_tickers:
-            target_ticker = known_tickers[w.lower()]
-            break
-        elif len(w) <= 6 and w.isalpha() and w.isupper() and w.lower() not in ("what", "show", "give", "tell", "more", "why", "this", "that", "from", "with", "your", "have"):
-            target_ticker = w.upper()
+
+    # Try multi-word company matches first (e.g., "adani gas", "hdfc bank", "asian paints")
+    for length in (3, 2):
+        for i in range(len(words) - length + 1):
+            phrase = " ".join(words[i:i+length]).lower()
+            if phrase in known_tickers:
+                target_ticker = known_tickers[phrase]
+                break
+        if target_ticker:
             break
 
-    # If no ticker in immediate prompt, inspect recent conversation history to preserve entity context
+    # Then try single-word matches
     if not target_ticker:
+        # Common words that should NEVER be treated as tickers
+        stop_words = {"what", "show", "give", "tell", "more", "why", "this",
+                      "that", "from", "with", "your", "have", "about", "the",
+                      "does", "will", "how", "when", "who", "its", "are",
+                      "can", "for", "and", "not", "but", "any", "all",
+                      "is", "it", "me", "my", "do", "so", "if", "in",
+                      "up", "or", "as", "on", "at", "to", "of", "an",
+                      "be", "no", "go", "us", "by", "he", "we",
+                      "stock", "stocks", "share", "shares", "price",
+                      "market", "today", "please", "thanks"}
+        for w in words:
+            wl = w.lower()
+            if wl in known_tickers:
+                target_ticker = known_tickers[wl]
+                break
+
+    # If no ticker found AND query looks like a follow-up ("is it risky?", "tell me more"),
+    # check recent conversation history for context. Skip for fresh questions.
+    is_followup = not target_ticker and any(k in text_lower for k in [
+        "is it", "its ", "it's", "tell me more", "more about", "go deeper",
+        "risk", "risky", "competitor", "profit", "loss", "compare",
+    ]) and not any(k in text_lower for k in ["what is", "explain", "define", "who is"])
+    if is_followup and not target_ticker:
         try:
             recent_msgs = conversation_service.get_recent_history(user_id, limit=6)
             for msg in reversed(recent_msgs):
@@ -212,10 +343,32 @@ Master financial concepts step-by-step from beginner to advanced:
         except Exception:
             pass
 
+    # Dynamic yfinance lookup for unknown companies (e.g., "Page Industries", "Dixon Tech")
+    if not target_ticker and not is_concept_question:
+        # Check if the query looks like it's asking about a specific company
+        company_signal = any(k in text_lower for k in [
+            "stock", "share", "price", "about", "tell me", "research",
+            "buy", "sell", "invest", "analysis"
+        ])
+        if company_signal:
+            try:
+                import yfinance as yf
+                # Extract potential company name (remove common query words)
+                query_words = text_lower.replace("tell me about", "").replace("what about", "").replace("show me", "").strip()
+                for suffix in [".NS", ".BO", ""]:
+                    test_ticker = query_words.upper().replace(" ", "") + suffix
+                    try:
+                        info = yf.Ticker(test_ticker).info
+                        if info.get("regularMarketPrice") or info.get("currentPrice"):
+                            target_ticker = test_ticker
+                            break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
     # 2. Company Research & Action Deep-Dives
-    if target_ticker or any(k in text_lower for k in ["profit", "loss", "revenue", "financials", "quarter", "earnings", "deep-dive", "explain simply", "why does this matter", "risk", "risky", "competitor", "competitors", "peer", "peers"]):
-        if not target_ticker:
-            target_ticker = "AMZN"
+    if target_ticker:
 
         quote = json.loads(dispatch_tool("get_stock_quote", {"ticker": target_ticker}, user_id))
         fundamentals = json.loads(dispatch_tool("get_company_fundamentals", {"ticker": target_ticker}, user_id))

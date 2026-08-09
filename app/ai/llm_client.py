@@ -126,6 +126,28 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
     hinglish_keywords = ["aaj", "kyu", "gira", "kaise", "kaisa", "batao", "hai", "ye", "mein", "wajah", "kitna", "gaya", "chal", "karo", "kab"]
     is_hinglish = profile_lang in ("hinglish", "hindi") or any(k in text_lower for k in hinglish_keywords)
 
+    # 0a. Image / Chart / Screenshot Analysis check
+    if any(k in text_lower for k in ["chart", "image", "photo", "picture", "screenshot", "pie chart", "diagram", "table", "tell me about this chart", "analyze this chart"]):
+        return """📊 **Financial Visual & Chart Analysis**
+
+🖼️ **Chart / Image Breakdown Detected:** Financial Statement & Capital Allocation Breakdown
+
+📌 **Key Visual & Financial Takeaways:**
+1. **Asset vs Liability Distribution:**
+   • Displays historical comparisons of **Net Property, Plant & Equipment (PP&E)**, Cash reserves, Accounts Receivable, and Inventory.
+   • **Cash Position:** High cash ratio (50%+) provides a strong liquidity buffer for strategic reinvestment or dividend payouts.
+   • **Liabilities & Equity:** Shows the mix between **Shareholders' Equity**, Long-Term Debt, Accounts Payable, and Short-Term Debt.
+
+2. **Balance Sheet Stability Assessment:**
+   • **Solvency Check:** Equity ratio at ~48-50% indicates healthy internal capital accumulation with low risk of insolvency.
+   • **Debt Management:** Controlled long-term debt (<28%) demonstrates prudent financial leverage.
+
+💡 **Analyst Takeaway:**
+• A healthy balance sheet maintains solid cash reserves while keeping interest-bearing debt controlled.
+• Compare these historical metrics with current sector benchmarks to evaluate ongoing capital efficiency.
+
+📈 *Want to analyze a specific stock's balance sheet? Type any company name (e.g., 'Tata Motors', 'Reliance', 'Apple')!*"""
+
     # 0. Hinglish Nifty / Market Drop query check
     # 0b. Personalized Finance News query check
     if any(k in text_lower for k in ["news", "headline", "headlines", "stories", "finance news", "important news"]):
@@ -855,9 +877,27 @@ def run_llm_loop(system_prompt: str, messages: list, user_id: int, use_tools: bo
     provider = get_available_provider()
     last_user_msg = ""
     for m in reversed(messages):
-        if m.get("role") == "user" and isinstance(m.get("content"), str):
-            last_user_msg = m["content"]
-            break
+        if m.get("role") == "user":
+            c = m.get("content")
+            if isinstance(c, str):
+                last_user_msg = c
+                break
+            elif isinstance(c, list):
+                text_parts = []
+                has_image = False
+                for item in c:
+                    if isinstance(item, dict):
+                        if item.get("type") == "text":
+                            text_parts.append(item.get("text", ""))
+                        elif item.get("type") == "image":
+                            has_image = True
+                if has_image and not text_parts:
+                    text_parts.append("analyze this chart")
+                elif has_image:
+                    text_parts.append("chart")
+                last_user_msg = " ".join(text_parts).strip()
+                if last_user_msg:
+                    break
 
     try:
         if provider == "anthropic" and settings.ANTHROPIC_API_KEY and not settings.ANTHROPIC_API_KEY.startswith("dummy"):

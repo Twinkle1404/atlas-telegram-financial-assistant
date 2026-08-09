@@ -46,6 +46,7 @@ def get_usd_inr_rate() -> float:
 def get_quote(ticker: str) -> dict:
     ticker_upper = ticker.upper()
     usd_inr = get_usd_inr_rate()
+    is_fx_or_macro = ticker_upper in ["USDINR=X", "^VIX", "^TNX", "DX-Y.NYB", "CL=F"] or ticker_upper.endswith("=X")
 
     try:
         t = yf.Ticker(ticker_upper)
@@ -54,20 +55,27 @@ def get_quote(ticker: str) -> dict:
         prev_close = info.get("previous_close")
         if price and price > 0:
             currency = info.get("currency", "USD")
-            rate = usd_inr if currency == "USD" else 1.0
+            rate = 1.0 if (is_fx_or_macro or currency != "USD") else usd_inr
             price_inr = round(price * rate, 2)
             prev_close_inr = round(prev_close * rate, 2) if prev_close else price_inr
             change_pct = round(((price - prev_close) / prev_close * 100), 2) if prev_close else 0.0
+
+            if ticker_upper == "USDINR=X":
+                formatted = f"₹{price:,.2f}"
+            elif is_fx_or_macro:
+                formatted = f"{price:,.2f}"
+            else:
+                formatted = f"₹{price_inr:,.2f}"
 
             return {
                 "ticker": ticker_upper,
                 "price_usd": round(price, 2),
                 "price_inr": price_inr,
-                "price": price_inr if currency == "USD" else round(price, 2),
+                "price": price_inr if currency == "USD" and not is_fx_or_macro else round(price, 2),
                 "previous_close": prev_close_inr,
                 "change_pct": change_pct,
-                "currency": "INR",
-                "formatted_price": f"₹{price_inr:,.2f}",
+                "currency": "INR" if not is_fx_or_macro else currency,
+                "formatted_price": formatted,
                 "usd_inr_rate": usd_inr,
             }
     except Exception as exc:
@@ -77,9 +85,17 @@ def get_quote(ticker: str) -> dict:
     fb = _FALLBACK_DATA.get(ticker_upper, {"price_usd": 150.0, "prev_usd": 148.0, "sector": "General"})
     price_usd = fb["price_usd"]
     prev_usd = fb.get("prev_usd", price_usd)
-    price_inr = round(price_usd * usd_inr, 2)
-    prev_inr = round(prev_usd * usd_inr, 2)
+    rate = 1.0 if is_fx_or_macro else usd_inr
+    price_inr = round(price_usd * rate, 2)
+    prev_inr = round(prev_usd * rate, 2)
     change_pct = round(((price_usd - prev_usd) / prev_usd * 100), 2)
+
+    if ticker_upper == "USDINR=X":
+        formatted = f"₹{price_usd:,.2f}"
+    elif is_fx_or_macro:
+        formatted = f"{price_usd:,.2f}"
+    else:
+        formatted = f"₹{price_inr:,.2f}"
 
     return {
         "ticker": ticker_upper,
@@ -88,6 +104,10 @@ def get_quote(ticker: str) -> dict:
         "price": price_inr,
         "previous_close": prev_inr,
         "change_pct": change_pct,
+        "currency": "INR" if not is_fx_or_macro else "USD",
+        "formatted_price": formatted,
+        "usd_inr_rate": usd_inr,
+    }
         "currency": "INR",
         "formatted_price": f"₹{price_inr:,.2f}",
         "usd_inr_rate": usd_inr,

@@ -18,8 +18,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger(__name__)
 
 
+from telegram.request import HTTPXRequest
+
+
 def build_application():
-    application = ApplicationBuilder().token(settings.TELEGRAM_BOT_TOKEN).build()
+    request = HTTPXRequest(connect_timeout=30.0, read_timeout=30.0)
+    application = ApplicationBuilder().token(settings.TELEGRAM_BOT_TOKEN).request(request).build()
 
     # /start is the one unavoidable Telegram-native trigger to open a chat;
     # everything after it is natural conversation, no other commands exist.

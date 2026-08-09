@@ -60,12 +60,28 @@ def transcribe(file_path: str) -> str:
         import speech_recognition as sr
         from pydub import AudioSegment
 
-        # Try imageio_ffmpeg bundled binary if system ffmpeg is missing
-        try:
-            import imageio_ffmpeg
-            AudioSegment.converter = imageio_ffmpeg.get_ffmpeg_exe()
-        except Exception:
-            pass
+        # Auto-discover ffmpeg.exe from system PATH, WinGet packages, or Program Files
+        import shutil, glob
+        ffmpeg_exe = shutil.which("ffmpeg")
+        if not ffmpeg_exe:
+            patterns = [
+                os.path.expanduser(r"~\AppData\Local\Microsoft\WinGet\Packages\*\*\bin\ffmpeg.exe"),
+                os.path.expanduser(r"~\AppData\Local\Microsoft\WinGet\Packages\*\bin\ffmpeg.exe"),
+                r"C:\Program Files*\*\bin\ffmpeg.exe",
+                r"C:\ProgramData\chocolatey\bin\ffmpeg.exe",
+            ]
+            for p in patterns:
+                matches = glob.glob(p)
+                if matches:
+                    ffmpeg_exe = matches[0]
+                    break
+
+        if ffmpeg_exe:
+            bin_dir = os.path.dirname(ffmpeg_exe)
+            if bin_dir not in os.environ.get("PATH", ""):
+                os.environ["PATH"] = bin_dir + os.pathsep + os.environ.get("PATH", "")
+            AudioSegment.converter = ffmpeg_exe
+            AudioSegment.ffmpeg = ffmpeg_exe
 
         wav_path = file_path + ".wav"
         audio = AudioSegment.from_file(file_path)

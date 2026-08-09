@@ -117,10 +117,222 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
     """Generates structured financial research, stock market analysis, P&L, stock quote,
     or portfolio report directly when external API key is unconfigured or encounters disruptions."""
     from app.ai.tools import dispatch_tool
+    from app.services import conversation_service
     text_lower = user_text.lower().strip()
 
-    # 1. Stock Market Intelligence & Overview Check
-    if any(k in text_lower for k in ["market", "stock market", "indices", "overview", "nifty", "sensex", "nasdaq", "dow", "s&p"]):
+    known_tickers = {
+        "apple": "AAPL", "aapl": "AAPL",
+        "amazon": "AMZN", "amzn": "AMZN",
+        "nvidia": "NVDA", "nvda": "NVDA",
+        "microsoft": "MSFT", "msft": "MSFT",
+        "google": "GOOGL", "googl": "GOOGL", "alphabet": "GOOGL",
+        "tesla": "TSLA", "tsla": "TSLA",
+        "meta": "META", "facebook": "META",
+        "netflix": "NFLX", "nflx": "NFLX",
+        "amd": "AMD", "intel": "INTC", "boeing": "BA",
+        "reliance": "RELIANCE.NS", "tata": "TATAMOTORS.NS", "tatamotors": "TATAMOTORS.NS",
+        "tcs": "TCS.NS", "infosys": "INFY.NS", "infy": "INFY.NS",
+        "wipro": "WIPRO.NS", "hdfc": "HDFCBANK.NS", "icici": "ICICIBANK.NS", "sbi": "SBIN.NS",
+        "spy": "SPY"
+    }
+
+    # 1. Ticker Extraction — Check prompt text first, then check recent conversation history
+    words = [w.strip(".,!?\"'()") for w in user_text.split()]
+    target_ticker = None
+    for w in words:
+        if w.lower() in known_tickers:
+            target_ticker = known_tickers[w.lower()]
+            break
+        elif len(w) <= 6 and w.isalpha() and w.isupper() and w.lower() not in ("what", "show", "give", "tell", "more", "why", "this", "that", "from", "with", "your", "have"):
+            target_ticker = w.upper()
+            break
+
+    # If no ticker in immediate prompt, inspect recent conversation history to preserve entity context
+    if not target_ticker:
+        try:
+            recent_msgs = conversation_service.get_recent_history(user_id, limit=6)
+            for msg in reversed(recent_msgs):
+                content = msg.get("content", "")
+                for w in [x.strip(".,!?\"'()") for x in content.split()]:
+                    if w.lower() in known_tickers:
+                        target_ticker = known_tickers[w.lower()]
+                        break
+                if target_ticker:
+                    break
+        except Exception:
+            pass
+
+    # 2. Company Research & Action Deep-Dives
+    if target_ticker or any(k in text_lower for k in ["profit", "loss", "revenue", "financials", "quarter", "earnings", "deep-dive", "explain simply", "why does this matter"]):
+        if not target_ticker:
+            target_ticker = "AMZN"
+
+        quote = json.loads(dispatch_tool("get_stock_quote", {"ticker": target_ticker}, user_id))
+        fundamentals = json.loads(dispatch_tool("get_company_fundamentals", {"ticker": target_ticker}, user_id))
+        name = fundamentals.get("name") or target_ticker
+        price_inr = quote.get("formatted_price") or f"₹{quote.get('price_inr', 0):,.2f}"
+        change = quote.get('change_pct', 0)
+        change_emoji = "🟢" if change >= 0 else "🔴"
+
+        # Deep-dive / Go deeper / Tell me more
+        if any(k in text_lower for k in ["deep-dive", "go deeper", "tell me more", "more details", "expand", "detailed"]):
+            hist = json.loads(dispatch_tool("get_historical_financials", {"ticker": target_ticker}, user_id))
+            hs = json.loads(dispatch_tool("get_company_health_score", {"ticker": target_ticker}, user_id))
+            comps = market_data.get_competitors(target_ticker)
+            comp_str = ", ".join([f"{c['name']} ({c['ticker']})" for c in comps[:3]])
+
+            rows = [f"• **{item['year']}**: Revenue ₹{item['revenue_cr']:,.0f} Cr | Profit ₹{item['net_profit_cr']:,.0f} Cr ({item['margin_pct']}%) → {item['status']}" for item in hist.get("history", [])]
+
+            return f"""🔍 **Deep-Dive Financial Research: {name} ({target_ticker})**
+
+📊 **Current Quote & Valuation:**
+• Price: {price_inr} ({change:+.2f}%) {change_emoji}
+• P/E Ratio: {fundamentals.get('pe_ratio', 'N/A')}x (Forward P/E: {fundamentals.get('forward_pe', 'N/A')}x)
+• Market Cap: {fundamentals.get('market_cap_formatted', 'N/A')}
+• Beta Volatility: {fundamentals.get('beta', 1.0)}
+
+💰 **5-Year Multi-Year P/L History:**
+{chr(10).join(rows)}
+
+⭐ **AI Research Score Breakdown:**
+• **Overall Rating:** `{hs.get('overall_score')}/10`
+• Profitability: {hs.get('factors', {}).get('Profitability', 'N/A')}
+• Growth: {hs.get('factors', {}).get('Revenue Growth', 'N/A')}
+• Debt Position: {hs.get('factors', {}).get('Debt Position', 'N/A')}
+
+🏢 **Top Competitors:** {comp_str}
+
+💡 **Executive Insight:** {hs.get('score_justification')}
+"""
+
+        # Explain Simply
+        if any(k in text_lower for k in ["explain simply", "simple", "beginner", "explain like"]):
+            return f"""🎓 **In Simple Terms: {name} ({target_ticker})**
+
+• **What does {name} do?** It is a major company in the {fundamentals.get('sector', 'General')} industry.
+• **Is it profitable?** Yes! It generated ₹{(fundamentals.get('revenue_ttm_inr') or 0)/1e7:,.0f} Cr in revenue with a net profit margin of {fundamentals.get('profit_margin', 0)*100:.1f}%.
+• **How is the stock performing?** The stock is at {price_inr} ({change:+.2f}% today).
+• **P/E Ratio explained:** Investors are paying ₹{fundamentals.get('pe_ratio', 25)} for every ₹1 of company earnings.
+
+💡 *Takeaway:* {name} is a solid enterprise with steady margins. Check its AI Health Score or compare it with competitors to learn more!"""
+
+        # Why does this matter?
+        if any(k in text_lower for k in ["why does this matter", "why matters", "why matter"]):
+            return f"""❓ **Why {name} ({target_ticker}) Financials Matter for Investors**
+
+1. **Profitability Trend:** Shows whether the company is growing sustainably or losing money.
+2. **Valuation (P/E {fundamentals.get('pe_ratio', 'N/A')}x):** Helps you determine if the stock is expensive or fairly priced compared to competitors.
+3. **Competitive Edge:** High profit margins ({fundamentals.get('profit_margin', 0)*100:.1f}%) indicate strong pricing power in its sector.
+
+💡 *Next Step:* Tap **"🏢 Compare Competitors"** below to see how {name} stacks up against industry rivals!"""
+
+        # Profit & Loss history check
+        if any(k in text_lower for k in ["profit", "loss", "p&l", "historical", "trend", "turning point", "history"]):
+            hist = json.loads(dispatch_tool("get_historical_financials", {"ticker": target_ticker}, user_id))
+            rows = [f"• **{item['year']}**: Revenue ₹{item['revenue_cr']:,.0f} Cr | Profit ₹{item['net_profit_cr']:,.0f} Cr ({item['margin_pct']}%) → {item['status']}" for item in hist.get("history", [])]
+            turning_text = "\n".join([f"- {t}" for t in hist.get("turning_points", [])])
+
+            return f"""📊 **Profit & Loss History & Timeline: {name} ({target_ticker})**
+
+💰 **5-Year Financial Progression:**
+{chr(10).join(rows)}
+
+🗓️ **What Changed? (Milestone Timeline):**
+{turning_text}
+
+💡 *In simple terms:* {name} transitioned from early cost challenges to strong profitability as market demand and operational efficiency improved."""
+
+        # AI Health Score check
+        if any(k in text_lower for k in ["health", "score", "rating", "rank"]):
+            hs = json.loads(dispatch_tool("get_company_health_score", {"ticker": target_ticker}, user_id))
+            factor_lines = "\n".join([f"• **{k}**: {v}" for k, v in hs.get("factors", {}).items()])
+            return f"""⭐ **AI Research Score: {name} ({target_ticker})**
+
+🏆 **Overall Score:** `{hs.get('overall_score')}/10`
+
+📊 **5-Factor Breakdown:**
+{factor_lines}
+
+💡 **Why this score?**
+{hs.get('score_justification')}"""
+
+        # Default clean financial summary if specific financial keywords used
+        has_financial_question = any(k in text_lower for k in [
+            "price", "stock", "pe", "p/e", "valuation", "market cap",
+            "fundamentals", "research", "analysis", "full research",
+            "how is", "how's", "what happened", "why", "performance"
+        ])
+        if has_financial_question:
+            mcap_raw = fundamentals.get("market_cap_inr", 0)
+            mcap_str = f"₹{mcap_raw/1e12:.1f}L Cr" if mcap_raw >= 1e12 else f"₹{mcap_raw/1e7:,.0f} Cr"
+            rev_raw = fundamentals.get("revenue_ttm_inr", 0)
+            rev_str = f"₹{rev_raw/1e12:.1f}L Cr" if rev_raw >= 1e12 else f"₹{rev_raw/1e7:,.0f} Cr"
+            profit_margin = f"{fundamentals.get('profit_margin', 0)*100:.1f}%" if fundamentals.get("profit_margin") else "N/A"
+            pe = fundamentals.get("pe_ratio") or "N/A"
+
+            return f"""{change_emoji} **{name}** ({target_ticker}) — {price_inr} ({change:+.2f}%)
+
+📊 **Key Financials**
+• Revenue (TTM): {rev_str}
+• Net Margin: {profit_margin}
+• P/E Ratio: {pe}x
+• Market Cap: {mcap_str}
+• Sector: {fundamentals.get('sector', 'Technology')}
+
+💡 {name} {"is trading near recent highs" if change > 0 else "has seen recent price consolidation"}. {"Strong margins suggest solid business quality." if fundamentals.get('profit_margin', 0) > 0.15 else "Margins are worth monitoring."}"""
+
+        # Pure company name entry — show research menu
+        return f"""Sure! **{name}** is at {price_inr} ({change:+.2f}% today) {change_emoji}
+
+What would you like to know?
+
+🔎 **Full Research** — complete company analysis
+💰 **Profit & Loss** — 5-year revenue, margins, earnings history
+📈 **Stock Performance** — price history & movements
+⭐ **AI Health Score** — 5-factor 0-10 research score
+🏢 **Competitors** — rival companies comparison
+⚠️ **Risks** — business & financial risks
+🎓 **Explain Simply** — beginner-friendly overview
+
+Just pick one or ask me anything about {name}!"""
+
+    # 3. Portfolio Analytics Check
+    if any(c.isdigit() for c in user_text) and any(k in text_lower for k in ["hold", "shares", "portfolio", "aapl", "nvda", "spy"]):
+        portfolio_res = json.loads(dispatch_tool("analyze_portfolio", {"holdings": user_text}, user_id))
+        if "error" not in portfolio_res:
+            total_val = portfolio_res.get("formatted_total_value_inr", "₹0.00")
+            beta = portfolio_res.get("aggregate_portfolio_beta", "N/A")
+            pe = portfolio_res.get("weighted_average_pe", "N/A")
+            flags = "\n".join([f"- {f}" for f in portfolio_res.get("risk_flags", [])])
+            return f"""💼 **Portfolio Analytics & Concentration Risk Report**
+
+- **Total Portfolio Value (in ₹):** {total_val}
+- **Holdings Count:** {portfolio_res.get('holdings_count')} positions
+- **Weighted Aggregate Beta:** {beta}
+- **Weighted Average P/E:** {pe}x
+
+🚨 **Risk Flags & Sector Exposure:**
+{flags}
+"""
+
+    # 4. Comparison Requests
+    if any(k in text_lower for k in ["compare", "vs", "versus", "difference between"]):
+        comp_tickers = []
+        for word in user_text.replace(",", " ").split():
+            clean = word.strip(".,!?\"'()").lower()
+            if clean in known_tickers:
+                comp_tickers.append(known_tickers[clean])
+
+        if len(comp_tickers) >= 2:
+            comp_res = json.loads(dispatch_tool("compare_companies", {"tickers": comp_tickers[:4]}, user_id))
+            lines = ["📊 **Side-by-Side Company Comparison**\n"]
+            for t_data in comp_res.get("comparison", []):
+                t_name = t_data.get("name", t_data.get("ticker"))
+                lines.append(f"• **{t_name}** ({t_data.get('ticker')}): Price {t_data.get('formatted_price')} | P/E: {t_data.get('pe_ratio', 'N/A')}x | Net Margin: {t_data.get('profit_margin', 'N/A')} | Market Cap: {t_data.get('market_cap_formatted', 'N/A')}")
+            return "\n".join(lines)
+
+    # 5. EXPLICIT Stock Market Intelligence & Overview Check (Only if specifically requested)
+    if any(k in text_lower for k in ["market summary", "market overview", "market update", "today's market", "stock market indices", "indices overview", "how is market"]):
         market_data_res = json.loads(dispatch_tool("get_market_overview", {}, user_id))
         macro_res = json.loads(dispatch_tool("get_macro_indicators", {}, user_id))
         calendar_res = json.loads(dispatch_tool("get_economic_calendar", {}, user_id))
@@ -155,158 +367,6 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
 📅 **Upcoming High-Impact Economic Catalysts:**
 {events_summary}
 """
-
-    # 2. Company & Profit/Loss Research Check
-    words = [w.strip(".,!?\"'") for w in user_text.split()]
-    known_tickers = {
-        "apple": "AAPL", "aapl": "AAPL",
-        "amazon": "AMZN", "amzn": "AMZN",
-        "nvidia": "NVDA", "nvda": "NVDA",
-        "microsoft": "MSFT", "msft": "MSFT",
-        "google": "GOOGL", "googl": "GOOGL", "alphabet": "GOOGL",
-        "tesla": "TSLA", "tsla": "TSLA",
-        "meta": "META", "facebook": "META",
-        "netflix": "NFLX", "nflx": "NFLX",
-        "amd": "AMD", "intel": "INTC", "boeing": "BA",
-        "reliance": "RELIANCE.NS", "tata": "TATAMOTORS.NS", "tatamotors": "TATAMOTORS.NS",
-        "tcs": "TCS.NS", "infosys": "INFY.NS", "infy": "INFY.NS",
-        "wipro": "WIPRO.NS", "hdfc": "HDFCBANK.NS", "icici": "ICICIBANK.NS", "sbi": "SBIN.NS",
-        "spy": "SPY", "s&p": "SPY", "s&p500": "SPY"
-    }
-
-    target_ticker = None
-    for w in words:
-        if w.lower() in known_tickers:
-            target_ticker = known_tickers[w.lower()]
-            break
-        elif len(w) <= 6 and w.isalpha():
-            target_ticker = w.upper()
-            break
-
-    if not target_ticker and len(words) == 1 and len(words[0]) >= 2:
-        target_ticker = words[0].upper()
-
-    if target_ticker or any(k in text_lower for k in ["profit", "loss", "revenue", "financials", "quarter", "earnings"]):
-        if not target_ticker:
-            target_ticker = "AMZN"
-
-        # Check if user is asking a SPECIFIC financial question or just typed a company name
-        has_financial_question = any(k in text_lower for k in [
-            "profit", "loss", "revenue", "financials", "quarter", "earnings",
-            "price", "stock", "pe", "p/e", "valuation", "market cap",
-            "fundamentals", "research", "analysis", "full research",
-            "how is", "how's", "what happened", "why", "performance"
-        ])
-
-        if has_financial_question:
-            quote = json.loads(dispatch_tool("get_stock_quote", {"ticker": target_ticker}, user_id))
-            fundamentals = json.loads(dispatch_tool("get_company_fundamentals", {"ticker": target_ticker}, user_id))
-            name = fundamentals.get("name") or target_ticker
-            price_inr = quote.get("formatted_price") or f"₹{quote.get('price_inr', 0):,.2f}"
-            change = quote.get('change_pct', 0)
-            change_emoji = "🟢" if change >= 0 else "🔴"
-
-            # Check if user specifically wants Profit & Loss history
-            if any(k in text_lower for k in ["profit", "loss", "p&l", "historical", "trend", "turning point", "history"]):
-                hist = json.loads(dispatch_tool("get_historical_financials", {"ticker": target_ticker}, user_id))
-                rows = []
-                for item in hist.get("history", []):
-                    rev = f"₹{item['revenue_cr']:,.0f} Cr"
-                    prof = f"₹{item['net_profit_cr']:,.0f} Cr"
-                    rows.append(f"• **{item['year']}**: Revenue {rev} | Profit {prof} ({item['margin_pct']}%) → {item['status']}")
-
-                turning_text = "\n".join([f"- {t}" for t in hist.get("turning_points", [])])
-
-                return f"""📊 **Profit & Loss History & Timeline: {name} ({target_ticker})**
-
-💰 **5-Year Financial Progression:**
-{chr(10).join(rows)}
-
-🗓️ **What Changed? (Milestone Timeline):**
-{turning_text}
-
-💡 *In simple terms:* {name} transitioned from early cost challenges to strong profitability as market demand and operational efficiency improved.
-
-📌 *What next?*
-• "Compare {target_ticker} with competitors"
-• "AI Health Score for {target_ticker}"
-• "{target_ticker} risks"
-"""
-
-            # Check if user wants Health Score
-            if any(k in text_lower for k in ["health", "score", "rating", "rank"]):
-                hs = json.loads(dispatch_tool("get_company_health_score", {"ticker": target_ticker}, user_id))
-                factors = hs.get("factors", {})
-                factor_lines = "\n".join([f"• **{k}**: {v}" for k, v in factors.items()])
-
-                return f"""⭐ **AI Research Score: {name} ({target_ticker})**
-
-🏆 **Overall Score:** `{hs.get('overall_score')}/10`
-
-📊 **5-Factor Breakdown:**
-{factor_lines}
-
-💡 **Why this score?**
-{hs.get('score_justification')}
-
-⚠️ *Disclaimer:* {hs.get('disclaimer')}
-"""
-
-            # Default clean, compact financial summary
-            mcap_raw = fundamentals.get("market_cap_inr", 0)
-            if mcap_raw and mcap_raw > 0:
-                mcap_cr = mcap_raw / 1e7
-                mcap_str = f"₹{mcap_cr/100000:.1f}L Cr" if mcap_cr >= 100000 else f"₹{mcap_cr:,.0f} Cr"
-            else:
-                mcap_str = fundamentals.get("market_cap_formatted", "N/A")
-
-            rev_raw = fundamentals.get("revenue_ttm_inr", 0)
-            if rev_raw and rev_raw > 0:
-                rev_cr = rev_raw / 1e7
-                rev_str = f"₹{rev_cr/100000:.1f}L Cr" if rev_cr >= 100000 else f"₹{rev_cr:,.0f} Cr"
-            else:
-                rev_str = "N/A"
-
-            profit_margin = f"{fundamentals.get('profit_margin', 0)*100:.1f}%" if fundamentals.get("profit_margin") else "N/A"
-            pe = fundamentals.get("pe_ratio") or "N/A"
-
-            return f"""{change_emoji} **{name}** ({target_ticker}) — {price_inr} ({change:+.2f}%)
-
-📊 **Key Financials**
-• Revenue (TTM): {rev_str}
-• Net Margin: {profit_margin}
-• P/E Ratio: {pe}x
-• Market Cap: {mcap_str}
-• Sector: {fundamentals.get('sector', 'Technology')}
-
-💡 {name} {"is trading near recent highs" if change > 0 else "has seen recent price consolidation"}. {"Strong margins suggest solid business quality." if fundamentals.get('profit_margin', 0) > 0.15 else "Margins are worth monitoring."}
-
-📌 *What next?*
-• "Compare {target_ticker} with competitors"
-• "{target_ticker} profit loss history"
-• "{target_ticker} AI health score"
-"""
-        else:
-            # User typed JUST a company name — show the research menu
-            quote = json.loads(dispatch_tool("get_stock_quote", {"ticker": target_ticker}, user_id))
-            name = quote.get("ticker", target_ticker)
-            price_inr = quote.get("formatted_price", "")
-            change = quote.get('change_pct', 0)
-            change_emoji = "🟢" if change >= 0 else "🔴"
-
-            return f"""Sure! **{name}** is at {price_inr} ({change:+.2f}% today) {change_emoji}
-
-What would you like to know?
-
-🔎 **Full Research** — complete company analysis
-💰 **Profit & Loss** — 5-year revenue, margins, earnings history
-📈 **Stock Performance** — price history & movements
-⭐ **AI Health Score** — 5-factor 0-10 research score
-🏢 **Competitors** — rival companies comparison
-⚠️ **Risks** — business & financial risks
-🎓 **Explain Simply** — beginner-friendly overview
-
-Just pick one or ask me anything about {name}!"""
 
     # 3. Portfolio analytics check
     if any(c.isdigit() for c in user_text) and any(k in text_lower for k in ["hold", "shares", "portfolio", "aapl", "nvda", "spy"]):

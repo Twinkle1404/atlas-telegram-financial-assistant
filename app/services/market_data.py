@@ -108,10 +108,6 @@ def get_quote(ticker: str) -> dict:
         "formatted_price": formatted,
         "usd_inr_rate": usd_inr,
     }
-        "currency": "INR",
-        "formatted_price": f"₹{price_inr:,.2f}",
-        "usd_inr_rate": usd_inr,
-    }
 
 
 def get_fundamentals(ticker: str) -> dict:

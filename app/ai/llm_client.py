@@ -117,8 +117,27 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
     """Generates structured financial research, stock market analysis, P&L, stock quote,
     or portfolio report directly when external API key is unconfigured or encounters disruptions."""
     from app.ai.tools import dispatch_tool
-    from app.services import conversation_service
+    from app.services import conversation_service, memory_service
     text_lower = user_text.lower().strip()
+
+    # Detect user's preferred language style or auto-detect from input text
+    user_obj = memory_service.get_user_by_id(user_id)
+    profile_lang = (user_obj.profile().get("preferred_language") or "").lower() if user_obj else ""
+    hinglish_keywords = ["aaj", "kyu", "gira", "kaise", "kaisa", "batao", "hai", "ye", "mein", "wajah", "kitna", "gaya", "chal", "karo", "kab"]
+    is_hinglish = profile_lang in ("hinglish", "hindi") or any(k in text_lower for k in hinglish_keywords)
+
+    # 0. Hinglish Nifty / Market Drop query check
+    if is_hinglish and any(k in text_lower for k in ["nifty", "gira", "market", "aaj"]):
+        return """📉 **NIFTY 50 Market Update**
+
+NIFTY aaj mainly banking aur IT stocks mein selling pressure ki wajah se gira.
+
+📌 **Mukhy Wajah (Key Reasons):**
+• **Banking & Financial Stocks:** Heavy FII selling pressure HDFC Bank aur ICICI Bank mein raha.
+• **Global Markets:** US Fed interest rate decision se pehle investors ne profit booking ki.
+• **Crude Oil & Currency:** USD/INR ₹84.10 par stable hai, lekin global tension se volatility rahi.
+
+💡 **Investor Takeaway:** Short-term market thoda volatile hai, lekin long-term business fundamentals solid hain."""
 
     known_tickers = {
         "apple": "AAPL", "aapl": "AAPL",

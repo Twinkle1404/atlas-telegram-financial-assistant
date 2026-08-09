@@ -170,7 +170,73 @@ Master financial concepts step-by-step from beginner to advanced:
 
 💡 *Tap any topic button in **Learn Finance** to get a 60-second lesson!*"""
 
-    # 0d. Concept / "What is X" educational questions
+    # 0d. Explicit "Tell Me More" / Deepen / Expand action check
+    is_tell_more = any(k in text_lower for k in ["expand on your previous response", "tell_more", "tell me more", "more details", "go deeper", "additional context", "deeper analysis"])
+
+    if is_tell_more:
+        if "nifty" in text_lower:
+            return """🔍 **Deep-Dive: NIFTY 50 Sectors, Methodology & Investing Strategy**
+
+📊 **Top Sector Weights in NIFTY 50:**
+• 🏦 **Financial Services (~33.5%):** HDFC Bank, ICICI Bank, SBI, Kotak Bank, Axis Bank
+• 💻 **Information Technology (~14.2%):** TCS, Infosys, HCLTech, Wipro, Tech Mahindra
+• ⚡ **Oil, Gas & Consumable Fuels (~12.1%):** Reliance Industries, ONGC, BPCL
+• 🛒 **FMCG (~8.4%):** ITC, Hindustan Unilever, Nestle India
+• 🚗 **Automobile & Components (~7.2%):** Tata Motors, Mahindra & Mahindra, Maruti Suzuki
+
+📐 **Calculation Methodology:**
+• Uses **Free-Float Market Capitalization Weighting** — only shares available for public trading determine a stock's weight.
+• **Rebalancing:** Reviewed semi-annually (March & September) to drop underperforming companies and include top-performing growth leaders.
+
+💡 **Key Takeaways for Investors:**
+1. **Core Portfolio Anchor:** Over 90% of Indian equity mutual funds benchmark against Nifty 50.
+2. **Passive Investing:** You can invest directly in the entire index via low-cost Nifty 50 Index Funds or ETFs (e.g. NIFTYBEES) with expense ratios under 0.10%.
+3. **Historical CAGR:** Historically delivered 12-14% annualized returns over 10+ year horizons.
+
+📈 *Ask "How to start a Nifty SIP?" or type "Indian market update" for live prices!*"""
+
+        if "sensex" in text_lower:
+            return """🔍 **Deep-Dive: SENSEX 30 Structure & Investment Analysis**
+
+📊 **SENSEX 30 Key Highlights:**
+• Represents **~45% of total market capitalization** of all companies listed on BSE.
+• Consists of 30 mega-cap Indian enterprises with proven track records.
+
+🏛️ **Top Heavyweight Stocks in SENSEX:**
+• **Reliance Industries (RIL):** Energy, Retail & Telecom (~10-11% weight)
+• **HDFC Bank:** India's largest private sector bank (~13-14% weight)
+• **ICICI Bank:** Retail & corporate banking powerhouse (~8% weight)
+• **Infosys & TCS:** IT services global delivery leaders (~12% combined)
+
+📐 **Selection Criteria:**
+• Must be listed on BSE for at least 1 year.
+• Must be among top 150 companies by free-float market cap and daily trading liquidity.
+• Sector balance enforced by BSE Index Committee.
+
+💡 **Investor Strategy:**
+Sensex is ideal for conservative equity investors seeking exposure to established Indian market leaders. You can invest via **BSE Sensex Index Funds** or **SETFNN50/UTISENSETF**.
+
+📈 *Ask "Compare Nifty vs Sensex" or "What is P/E of Sensex?" for deeper metrics!*"""
+
+        if any(k in text_lower for k in ["mutual fund", "sip", "fund"]):
+            return """🔍 **Deep-Dive: Mutual Funds, Expense Ratios & Tax Rules**
+
+📊 **Mutual Fund Categories:**
+1. **Large-Cap Equity Funds:** Top 100 companies by market cap — lower volatility, steady growth.
+2. **Mid & Small-Cap Funds:** Fast-growing smaller companies — higher return potential, higher risk.
+3. **Flexi-Cap / Multi-Cap Funds:** Fund manager dynamically shifts between Large, Mid, and Small caps based on market valuation.
+4. **ELSS (Tax Saving):** 3-year lock-in period, offers tax deduction up to ₹1.5 Lakh under Section 80C.
+
+💰 **Key Cost Metric — Expense Ratio:**
+• **Direct Plans vs Regular Plans:** Direct plans have no broker commission, saving 0.5%–1.5% every year. Over 20 years, Direct plans can yield 20-30% higher total wealth!
+
+🏛️ **Taxation Rules (India 2024 Updates):**
+• **LTCG (Long-Term Capital Gains >1 yr):** Taxed at 12.5% on gains exceeding ₹1.25 Lakh per financial year.
+• **STCG (Short-Term Capital Gains <1 yr):** Taxed at 20%.
+
+💡 **Actionable Advice:** Start a monthly **SIP (Systematic Investment Plan)** in a direct index fund to build long-term discipline."""
+
+    # 0e. Concept / "What is X" educational questions
     concept_answers = {
         "sensex": """📊 **What is SENSEX?**
 
@@ -235,7 +301,7 @@ A **dividend** is a portion of a company's profits paid directly to shareholders
         "bull market": "A **bull market** is when stock prices rise 20%+ from recent lows. It signals investor optimism and economic growth. India has experienced several strong bull runs driven by IT, banking, and infrastructure growth.",
     }
     # Check for concept questions like "what is sensex", "explain sensex", "sensex kya hai"
-    is_concept_question = any(k in text_lower for k in ["what is", "what are", "explain", "define", "meaning of", "kya hai", "kya hota"])
+    is_concept_question = any(k in text_lower for k in ["what is", "what are", "explain", "define", "meaning of", "kya hai", "kya hota"]) and not is_tell_more
     for concept_key, concept_answer in concept_answers.items():
         if concept_key in text_lower:
             if is_concept_question or not any(k in text_lower for k in ["price", "stock", "buy", "sell", "quote", "today"]):

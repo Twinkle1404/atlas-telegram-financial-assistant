@@ -199,39 +199,76 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
         ])
 
         if has_financial_question:
-            # User asked a specific question — deliver a CLEAN, compact report
             quote = json.loads(dispatch_tool("get_stock_quote", {"ticker": target_ticker}, user_id))
             fundamentals = json.loads(dispatch_tool("get_company_fundamentals", {"ticker": target_ticker}, user_id))
-
             name = fundamentals.get("name") or target_ticker
             price_inr = quote.get("formatted_price") or f"₹{quote.get('price_inr', 0):,.2f}"
             change = quote.get('change_pct', 0)
             change_emoji = "🟢" if change >= 0 else "🔴"
 
-            # Format market cap in readable lakhs crores
+            # Check if user specifically wants Profit & Loss history
+            if any(k in text_lower for k in ["profit", "loss", "p&l", "historical", "trend", "turning point", "history"]):
+                hist = json.loads(dispatch_tool("get_historical_financials", {"ticker": target_ticker}, user_id))
+                rows = []
+                for item in hist.get("history", []):
+                    rev = f"₹{item['revenue_cr']:,.0f} Cr"
+                    prof = f"₹{item['net_profit_cr']:,.0f} Cr"
+                    rows.append(f"• **{item['year']}**: Revenue {rev} | Profit {prof} ({item['margin_pct']}%) → {item['status']}")
+
+                turning_text = "\n".join([f"- {t}" for t in hist.get("turning_points", [])])
+
+                return f"""📊 **Profit & Loss History & Timeline: {name} ({target_ticker})**
+
+💰 **5-Year Financial Progression:**
+{chr(10).join(rows)}
+
+🗓️ **What Changed? (Milestone Timeline):**
+{turning_text}
+
+💡 *In simple terms:* {name} transitioned from early cost challenges to strong profitability as market demand and operational efficiency improved.
+
+📌 *What next?*
+• "Compare {target_ticker} with competitors"
+• "AI Health Score for {target_ticker}"
+• "{target_ticker} risks"
+"""
+
+            # Check if user wants Health Score
+            if any(k in text_lower for k in ["health", "score", "rating", "rank"]):
+                hs = json.loads(dispatch_tool("get_company_health_score", {"ticker": target_ticker}, user_id))
+                factors = hs.get("factors", {})
+                factor_lines = "\n".join([f"• **{k}**: {v}" for k, v in factors.items()])
+
+                return f"""⭐ **AI Research Score: {name} ({target_ticker})**
+
+🏆 **Overall Score:** `{hs.get('overall_score')}/10`
+
+📊 **5-Factor Breakdown:**
+{factor_lines}
+
+💡 **Why this score?**
+{hs.get('score_justification')}
+
+⚠️ *Disclaimer:* {hs.get('disclaimer')}
+"""
+
+            # Default clean, compact financial summary
             mcap_raw = fundamentals.get("market_cap_inr", 0)
             if mcap_raw and mcap_raw > 0:
                 mcap_cr = mcap_raw / 1e7
-                if mcap_cr >= 100000:
-                    mcap_str = f"₹{mcap_cr/100000:.1f}L Cr"
-                else:
-                    mcap_str = f"₹{mcap_cr:,.0f} Cr"
+                mcap_str = f"₹{mcap_cr/100000:.1f}L Cr" if mcap_cr >= 100000 else f"₹{mcap_cr:,.0f} Cr"
             else:
                 mcap_str = fundamentals.get("market_cap_formatted", "N/A")
 
             rev_raw = fundamentals.get("revenue_ttm_inr", 0)
             if rev_raw and rev_raw > 0:
                 rev_cr = rev_raw / 1e7
-                if rev_cr >= 100000:
-                    rev_str = f"₹{rev_cr/100000:.1f}L Cr"
-                else:
-                    rev_str = f"₹{rev_cr:,.0f} Cr"
+                rev_str = f"₹{rev_cr/100000:.1f}L Cr" if rev_cr >= 100000 else f"₹{rev_cr:,.0f} Cr"
             else:
                 rev_str = "N/A"
 
             profit_margin = f"{fundamentals.get('profit_margin', 0)*100:.1f}%" if fundamentals.get("profit_margin") else "N/A"
             pe = fundamentals.get("pe_ratio") or "N/A"
-            sector = fundamentals.get("sector", "")
 
             return f"""{change_emoji} **{name}** ({target_ticker}) — {price_inr} ({change:+.2f}%)
 
@@ -240,14 +277,14 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
 • Net Margin: {profit_margin}
 • P/E Ratio: {pe}x
 • Market Cap: {mcap_str}
-• Sector: {sector}
+• Sector: {fundamentals.get('sector', 'Technology')}
 
-💡 {name} {"is trading near its highs" if change > 0 else "has seen some pressure recently"}. {"Strong margins suggest solid profitability." if fundamentals.get('profit_margin', 0) > 0.15 else "Margins are worth watching closely."}
+💡 {name} {"is trading near recent highs" if change > 0 else "has seen recent price consolidation"}. {"Strong margins suggest solid business quality." if fundamentals.get('profit_margin', 0) > 0.15 else "Margins are worth monitoring."}
 
 📌 *What next?*
 • "Compare {target_ticker} with competitors"
-• "{target_ticker} news"
-• "{target_ticker} risks"
+• "{target_ticker} profit loss history"
+• "{target_ticker} AI health score"
 """
         else:
             # User typed JUST a company name — show the research menu
@@ -262,9 +299,9 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
 What would you like to know?
 
 🔎 **Full Research** — complete company analysis
-💰 **Profit & Loss** — revenue, margins, earnings
+💰 **Profit & Loss** — 5-year revenue, margins, earnings history
 📈 **Stock Performance** — price history & movements
-📰 **Latest News** — recent developments
+⭐ **AI Health Score** — 5-factor 0-10 research score
 🏢 **Competitors** — rival companies comparison
 ⚠️ **Risks** — business & financial risks
 🎓 **Explain Simply** — beginner-friendly overview

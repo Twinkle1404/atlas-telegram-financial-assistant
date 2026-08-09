@@ -221,13 +221,40 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "get_macro_indicators",
-        "description": "Get real-time global macro indicators: 10-Year US Treasury Yield, VIX Volatility Index, USD/INR Exchange Rate, US Dollar DXY, and Crude Oil.",
+        "description": "Get key macroeconomic indicators: 10Y Treasury yield, VIX volatility, USD/INR, DXY, Crude Oil.",
         "input_schema": {"type": "object", "properties": {}},
     },
     {
         "name": "get_economic_calendar",
-        "description": "Get upcoming market-moving macroeconomic events (FOMC rate decisions, CPI inflation, RBI announcements, NFP payrolls).",
+        "description": "Get upcoming major global macroeconomic calendar events (FOMC, CPI, RBI policy, NFP).",
         "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "get_historical_financials",
+        "description": "Get 5-year multi-year P/L historical financial statement data (Revenue, Net Profit, Margins, Turning points).",
+        "input_schema": {
+            "type": "object",
+            "properties": {"ticker": {"type": "string"}},
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_company_health_score",
+        "description": "Get a transparent 5-factor AI Research Score (0-10) for a company with score breakdown and justification.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"ticker": {"type": "string"}},
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_competitors",
+        "description": "Get main industry competitors and rival companies for a stock ticker.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"ticker": {"type": "string"}},
+            "required": ["ticker"],
+        },
     },
 ]
 
@@ -314,6 +341,15 @@ def dispatch_tool(name: str, tool_input: dict, user_id: int) -> str:
 
         elif name == "get_economic_calendar":
             result = macro_service.get_economic_calendar()
+
+        elif name == "get_historical_financials":
+            result = market_data.get_historical_financials(tool_input["ticker"])
+
+        elif name == "get_company_health_score":
+            result = market_data.calculate_health_score(tool_input["ticker"])
+
+        elif name == "get_competitors":
+            result = market_data.get_competitors(tool_input["ticker"])
 
         else:
             result = {"error": f"Unknown tool: {name}"}

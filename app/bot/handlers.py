@@ -51,7 +51,7 @@ def _build_learn_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(buttons)
 
 
-def _build_followup_keyboard(context_hint: str = "") -> InlineKeyboardMarkup:
+def _build_followup_keyboard(context_hint: str = "", ticker: str = "") -> InlineKeyboardMarkup:
     """Builds interactive follow-up buttons for financial responses."""
     buttons = [
         [
@@ -63,6 +63,11 @@ def _build_followup_keyboard(context_hint: str = "") -> InlineKeyboardMarkup:
             InlineKeyboardButton("🔍 Go deeper", callback_data=f"action:go_deeper:{context_hint}"),
         ],
     ]
+    if ticker:
+        buttons.append([
+            InlineKeyboardButton(f"🏢 Compare {ticker} Competitors", callback_data=f"comp:{ticker}"),
+            InlineKeyboardButton(f"⭐ {ticker} AI Health Score", callback_data=f"score:{ticker}"),
+        ])
     return InlineKeyboardMarkup(buttons)
 
 
@@ -234,6 +239,64 @@ _To change any preference, just tell me naturally — e.g. "change my language t
         conversation_service.log_message(user.id, "assistant", reply)
         for chunk in chunk_for_telegram(reply):
             await query.message.reply_text(chunk, reply_markup=_build_followup_keyboard("market"))
+        return
+
+    # ── Competitor Comparison action ──
+    if data.startswith("comp:"):
+        ticker = data.split(":", 1)[1]
+        await query.message.chat.send_action("typing")
+        memory_service.touch_last_active(user.id)
+
+        comps = market_data.get_competitors(ticker)
+        comp_buttons = []
+        for c in comps:
+            comp_buttons.append([InlineKeyboardButton(f"🔍 Research {c['name']} ({c['ticker']})", callback_data=f"research:{c['ticker']}")])
+
+        comp_names = ", ".join([f"{c['name']} ({c['ticker']})" for c in comps])
+        msg = f"🏢 **Competitor Research for {ticker}**\n\nTop industry peers for {ticker}:\n• {comp_names}\n\nClick any competitor below to compare:"
+        await query.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(comp_buttons), parse_mode="Markdown")
+        return
+
+    # ── AI Research Score action ──
+    if data.startswith("score:"):
+        ticker = data.split(":", 1)[1]
+        await query.message.chat.send_action("typing")
+        memory_service.touch_last_active(user.id)
+
+        hs = market_data.calculate_health_score(ticker)
+        factors = hs.get("factors", {})
+        factor_lines = "\n".join([f"• **{k}**: {v}" for k, v in factors.items()])
+
+        msg = f"""⭐ **AI Research Score: {hs.get('name')} ({ticker})**
+
+🏆 **Overall Score:** `{hs.get('overall_score')}/10`
+
+📊 **5-Factor Breakdown:**
+{factor_lines}
+
+💡 **Why this score?**
+{hs.get('score_justification')}
+
+⚠️ *Disclaimer:* {hs.get('disclaimer')}"""
+        await query.message.reply_text(msg, parse_mode="Markdown")
+        return
+
+    # ── Direct competitor research selection ──
+    if data.startswith("research:"):
+        target = data.split(":", 1)[1]
+        await query.message.chat.send_action("typing")
+        memory_service.touch_last_active(user.id)
+
+        prompt = f"Compare {target} with its peers and show its financials."
+        conversation_service.log_message(user.id, "user", prompt, input_type="text")
+        history = conversation_service.get_recent_history(user.id)[:-1]
+        reply = await asyncio.to_thread(
+            claude_client.generate_reply, user.id, user.profile(), history, prompt
+        )
+        reply = trim_for_telegram(reply)
+        conversation_service.log_message(user.id, "assistant", reply)
+        for chunk in chunk_for_telegram(reply):
+            await query.message.reply_text(chunk, reply_markup=_build_followup_keyboard(ticker=target))
         return
 
     # ── Explain/Deepen actions ──

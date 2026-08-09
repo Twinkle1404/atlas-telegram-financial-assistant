@@ -504,6 +504,7 @@ Top industry peers:
 
         prompt = action_prompts.get(action_type, f"Tell me more about: {original_text[:200]}")
         conversation_service.log_message(user.id, "user", f"[{action_type}]", input_type="text")
+        history = conversation_service.get_recent_history(user.id)[:-1]
         try:
             reply = await asyncio.to_thread(
                 claude_client.generate_reply, user.id, user.profile(), history, prompt

@@ -22,7 +22,7 @@ from app.ai import claude_client
 from app.bot import onboarding
 from app.database import get_session
 from app.models.watchlist import WatchlistItem
-from app.services import memory_service, conversation_service, document_service
+from app.services import memory_service, conversation_service, document_service, news_service, market_data
 from app.services import market_data, voice_service
 from app.utils.formatting import trim_for_telegram, chunk_for_telegram
 

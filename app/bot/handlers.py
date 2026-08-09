@@ -327,8 +327,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_cats.append(cat_name)
 
         memory_service.update_profile(user.id, {"news_categories": user_cats})
-        await query.message.edit_reply_markup(reply_markup=_build_news_categories_keyboard(user_cats))
-        return
+    # ── Quick actions ──
+    if data.startswith("quick:"):
         action = data.split(":", 1)[1]
         await query.message.chat.send_action("typing")
         memory_service.touch_last_active(user.id)
@@ -382,21 +382,27 @@ _To change any preference, just tell me naturally — e.g. "change my language t
             await query.message.reply_text(msg, parse_mode="Markdown")
             return
 
-        # Market update or news — route through AI
+        # Market update or news — route through AI or smart fallback
         prompts_map = {
-            "market": "Give me a quick market update for today — key indices, what moved and why.",
+            "market": "Give me a quick stock market update for today — key Indian indices (NIFTY 50, SENSEX), what moved and why.",
             "news": "What are the most important financial news stories today? Pick the 2-3 that actually matter and explain why.",
         }
         prompt = prompts_map.get(action, "What's happening in the markets today?")
         conversation_service.log_message(user.id, "user", prompt, input_type="text")
         history = conversation_service.get_recent_history(user.id)[:-1]
-        reply = await asyncio.to_thread(
-            claude_client.generate_reply, user.id, user.profile(), history, prompt
-        )
+        try:
+            reply = await asyncio.to_thread(
+                claude_client.generate_reply, user.id, user.profile(), history, prompt
+            )
+        except Exception as exc:
+            logger.warning("quick:%s AI generation failed: %s. Using smart fallback.", action, exc)
+            from app.ai.llm_client import _smart_fallback_response
+            reply = _smart_fallback_response(prompt, user.id)
+
         reply = trim_for_telegram(reply)
         conversation_service.log_message(user.id, "assistant", reply)
         for chunk in chunk_for_telegram(reply):
-            await query.message.reply_text(chunk, reply_markup=_build_followup_keyboard("market"))
+            await query.message.reply_text(chunk, reply_markup=_build_followup_keyboard("market"), parse_mode="Markdown")
         return
 
     # ── Competitor Comparison action ──
@@ -669,18 +675,25 @@ _To change any preference, just tell me naturally — e.g. "change my language t
         return
 
     history = conversation_service.get_recent_history(user.id)[:-1]  # exclude the message we just logged
-    reply = await asyncio.to_thread(
-        claude_client.generate_reply, user.id, user.profile(), history, text
-    )
+    try:
+        reply = await asyncio.to_thread(
+            claude_client.generate_reply, user.id, user.profile(), history, text
+        )
+    except Exception as exc:
+        logger.warning("generate_reply failed for user %s: %s. Using smart fallback.", user.id, exc)
+        from app.ai.llm_client import _smart_fallback_response
+        reply = _smart_fallback_response(text, user.id)
+
     reply = trim_for_telegram(reply)
     conversation_service.log_message(user.id, "assistant", reply)
 
-    # Add interactive buttons if the response contains financial data
+    # Add interactive buttons if response contains financial metrics
     keyboard = _build_followup_keyboard() if _detect_financial_response(reply) else None
+    chunks = chunk_for_telegram(reply)
 
-    for chunk in chunk_for_telegram(reply):
-        # Only attach keyboard to the last chunk
-        if chunk == chunk_for_telegram(reply)[-1] and keyboard:
-            await update.message.reply_text(chunk, reply_markup=keyboard)
+    for i, chunk in enumerate(chunks):
+        # Attach keyboard to the final chunk
+        if i == len(chunks) - 1 and keyboard:
+            await update.message.reply_text(chunk, reply_markup=keyboard, parse_mode="Markdown")
         else:
-            await update.message.reply_text(chunk)
+            await update.message.reply_text(chunk, parse_mode="Markdown")

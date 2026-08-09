@@ -321,9 +321,70 @@ A **dividend** is a portion of a company's profits paid directly to shareholders
 💡 **Think of it as:** Your share of the company's profits, like rent from owning property.""",
         "bear market": "A **bear market** is when stock prices fall 20%+ from recent highs. It signals widespread pessimism. Bear markets are temporary — historically, every bear market has been followed by a recovery.",
         "bull market": "A **bull market** is when stock prices rise 20%+ from recent lows. It signals investor optimism and economic growth. India has experienced several strong bull runs driven by IT, banking, and infrastructure growth.",
+        "p/e": """🔢 **What is the P/E Ratio (Price-to-Earnings)?**
+
+The **P/E Ratio** measures how much investors are paying for every ₹1 of annual net profit a company earns.
+
+📌 **Formula:**
+`P/E Ratio = Stock Price / Earnings Per Share (EPS)`
+
+💡 **How to interpret P/E:**
+• **High P/E (e.g., 40x+):** Investors expect strong future growth, OR the stock is expensive.
+• **Low P/E (e.g., 10x-15x):** The stock may be undervalued, OR the company faces business headwinds (value trap).
+• **Industry Context:** Always compare a company's P/E with its sector peers (e.g., comparing Tata Motors P/E with Maruti).
+
+📊 **Example:** If a stock costs ₹1,000 and earns ₹50 per share annually, its P/E ratio is `1,000 / 50 = 20x`.
+
+🎓 *Select **'🔢 5. P/E & EPS'** in **Learn Finance** for a full 60-second lesson!*""",
+        "pe ratio": """🔢 **What is the P/E Ratio (Price-to-Earnings)?**
+
+The **P/E Ratio** measures how much investors are paying for every ₹1 of annual net profit a company earns.
+
+📌 **Formula:**
+`P/E Ratio = Stock Price / Earnings Per Share (EPS)`
+
+💡 **How to interpret P/E:**
+• **High P/E (e.g., 40x+):** Investors expect strong future growth, OR the stock is expensive.
+• **Low P/E (e.g., 10x-15x):** The stock may be undervalued, OR the company faces business headwinds (value trap).
+• **Industry Context:** Always compare a company's P/E with its sector peers.
+
+📊 **Example:** If a stock costs ₹1,000 and earns ₹50 per share, its P/E is `20x`.""",
+        "eps": """💰 **What is EPS (Earnings Per Share)?**
+
+**EPS** tells you how much net profit a company generated for each single share of stock.
+
+📌 **Formula:**
+`EPS = (Net Income - Preferred Dividends) / Total Shares Outstanding`
+
+💡 **Why EPS Matters:** Higher and growing EPS year-over-year indicates strong profitability and growing shareholder value.""",
+        "roe": """📐 **What is ROE (Return on Equity)?**
+
+**ROE** measures how efficiently a company turns shareholders' capital into net profit.
+
+📌 **Formula:**
+`ROE = (Net Profit / Shareholders' Equity) * 100`
+
+💡 **Benchmark:** An ROE above **15%–20%** is generally considered strong in Indian markets.""",
+        "roce": """📐 **What is ROCE (Return on Capital Employed)?**
+
+**ROCE** measures how well a company generates operating profits from ALL capital employed (Equity + Debt).
+
+📌 **Why ROCE > ROE for Debt-Heavy Sectors:**
+ROCE includes debt, making it essential for analyzing capital-intensive sectors like automotive, steel, and infrastructure.""",
+        "market cap": """💎 **What is Market Capitalization (Market Cap)?**
+
+**Market Cap** represents the total rupee value of all outstanding shares of a company.
+
+📌 **Formula:**
+`Market Cap = Current Stock Price * Total Shares`
+
+📊 **India Market Cap Categories:**
+• **Large-Cap:** ₹20,000+ Cr (e.g., Reliance, TCS, HDFC Bank) — High stability
+• **Mid-Cap:** ₹5,000 Cr to ₹20,000 Cr — Growth potential + moderate risk
+• **Small-Cap:** Under ₹5,000 Cr — High growth potential + higher volatility""",
     }
-    # Check for concept questions like "what is sensex", "explain sensex", "sensex kya hai"
-    is_concept_question = any(k in text_lower for k in ["what is", "what are", "explain", "define", "meaning of", "kya hai", "kya hota"]) and not is_tell_more
+    # Check for concept questions like "what is sensex", "explain sensex", "explain p/e ratio", "sensex kya hai"
+    is_concept_question = any(k in text_lower for k in ["what is", "what are", "explain", "define", "meaning of", "kya hai", "kya hota", "tell me about p/e", "tell me about pe"]) and not is_tell_more
     for concept_key, concept_answer in concept_answers.items():
         if concept_key in text_lower:
             if is_concept_question or not any(k in text_lower for k in ["price", "stock", "buy", "sell", "quote", "today"]):

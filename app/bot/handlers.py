@@ -28,18 +28,17 @@ from app.utils.formatting import trim_for_telegram, chunk_for_telegram
 
 logger = logging.getLogger(__name__)
 
-# ── Learn Finance progressive curriculum ──
+# ── Learn Finance progressive curriculum (9-Step Learning Path) ──
 LEARN_TOPICS = [
-    ("stock_basics", "📈 What is a Stock?", "Explain what a stock is, why companies issue stocks, and how everyday people can own a piece of a company. Use simple language with real examples."),
-    ("stock_market", "🏛️ How the Stock Market Works", "Explain how stock markets (like NSE, BSE, NYSE) work — how buying and selling happens, what determines prices, and why markets go up and down. Keep it simple and beginner-friendly."),
-    ("index", "📊 What is NIFTY 50 / SENSEX?", "Explain what stock market indices are, specifically NIFTY 50 and SENSEX. Why do people track them? What does it mean when NIFTY goes up or down? Use simple analogies."),
-    ("revenue_profit", "💰 Revenue & Profit Explained", "Explain the difference between revenue and profit. Use a simple example like a chai shop to explain revenue, costs, gross profit, and net profit."),
-    ("pe_eps", "🔢 P/E Ratio & EPS", "Explain P/E ratio and EPS (Earnings Per Share) in the simplest way possible. Use a real company example. Explain what a 'high P/E' vs 'low P/E' means and why it matters."),
-    ("financial_statements", "📋 Reading Financial Statements", "Explain the 3 main financial statements: Income Statement, Balance Sheet, and Cash Flow Statement. What does each one tell you? Keep it simple with analogies."),
-    ("roe_roce", "📐 ROE & ROCE", "Explain Return on Equity (ROE) and Return on Capital Employed (ROCE). Why do investors care about these numbers? Use simple examples."),
-    ("valuation", "💎 Company Valuation Basics", "Explain how to tell if a stock is 'expensive' or 'cheap'. Cover P/E, P/B, and market cap. Explain why a ₹100 stock can be more expensive than a ₹2000 stock."),
-    ("diversification", "🛡️ Diversification & Risk", "Explain portfolio diversification — why you shouldn't put all your money in one stock. Explain different types of risk (market risk, company risk, sector risk)."),
-    ("mutual_funds", "🏦 Mutual Funds & ETFs", "Explain what mutual funds and ETFs are, how they differ from buying individual stocks, and why beginners often start with them. Keep it very simple."),
+    ("stock_basics", "📈 1. What is a Stock?", "Explain what a stock is, why companies issue stocks, and how everyday people can own a piece of a company. Use simple language with real examples."),
+    ("stock_market", "🏛️ 2. How the Stock Market Works", "Explain how stock markets work — how buying and selling happens, what determines prices, and why markets go up and down. Keep it simple and beginner-friendly."),
+    ("revenue_profit", "💰 3. Revenue & Profit", "Explain the difference between revenue and profit. Use a simple example like a chai shop to explain revenue, costs, gross profit, and net profit."),
+    ("financial_statements", "📋 4. Financial Statements", "Explain the 3 main financial statements: Income Statement, Balance Sheet, and Cash Flow Statement. What does each one tell you? Keep it simple with analogies."),
+    ("pe_eps", "🔢 5. P/E & EPS", "Explain P/E ratio and EPS (Earnings Per Share) in the simplest way possible. Use a real company example. Explain what a 'high P/E' vs 'low P/E' means and why it matters."),
+    ("roe_roce", "📐 6. ROE & ROCE", "Explain Return on Equity (ROE) and Return on Capital Employed (ROCE). Why do investors care about these numbers? Use simple examples."),
+    ("company_analysis", "🔍 7. Company Analysis", "Explain how to analyze a company before investing. Cover qualitative factors (brand, management, product) and quantitative factors (revenue growth, margins)."),
+    ("valuation", "💎 8. Valuation", "Explain how to tell if a stock is 'expensive' or 'cheap'. Cover P/E, P/B, and market cap. Explain why a ₹100 stock can be more expensive than a ₹2000 stock."),
+    ("risk_management", "🛡️ 9. Risk Management", "Explain portfolio diversification and risk management — why you shouldn't put all your money in one stock. Cover market risk, company risk, and sector risk."),
 ]
 
 

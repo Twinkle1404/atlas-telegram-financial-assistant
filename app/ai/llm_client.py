@@ -264,6 +264,13 @@ Main industry rivals in the {fundamentals.get('sector', 'General')} sector:
         # Explain Simply
         if any(k in text_lower for k in ["explain simply", "simple", "beginner", "explain like"]):
             margin_pct = f"{fundamentals.get('profit_margin', 0)*100:.1f}%" if fundamentals.get('profit_margin') else "N/A"
+            pe_str = f"Think of P/E like price per slice of earnings ({fundamentals.get('pe_ratio', 25)}x). A higher P/E means investors expect fast growth ahead."
+            
+            count, threshold = memory_service.track_concept_query(user_id, "pe_eps")
+            struggle_note = ""
+            if threshold:
+                struggle_note = "\n\n🎓 **You've asked about P/E ratio a couple of times!** Select **'🔢 5. P/E & EPS'** in **Learn Finance** for a full 60-second lesson!"
+
             return f"""🎓 **In Simple Terms: {name} ({target_ticker})**
 
 🏢 **What is {name}?**
@@ -276,8 +283,8 @@ It is a major company operating in the {fundamentals.get('sector', 'General')} i
 📈 **Stock Performance:**
 Currently trading at {price_inr} ({change:+.2f}% today) {change_emoji}.
 
-❓ **What does the P/E ratio ({fundamentals.get('pe_ratio', 25)}x) mean?**
-Think of P/E like price per slice of earnings. A higher P/E means investors expect fast growth ahead.
+❓ **P/E Ratio Explained:**
+{pe_str}{struggle_note}
 
 💡 **Bottom Line:** {name} has steady profitability. Compare it with competitors or check its AI Health Score to see more!"""
 

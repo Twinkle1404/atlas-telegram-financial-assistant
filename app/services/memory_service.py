@@ -80,4 +80,22 @@ def touch_last_active(user_id: int):
     from datetime import datetime
     with get_session() as session:
         user = session.query(User).filter_by(id=user_id).first()
-        user.last_active_at = datetime.utcnow()
+        if user:
+            user.last_active_at = datetime.utcnow()
+
+
+def track_concept_query(user_id: int, concept_key: str) -> tuple[int, bool]:
+    """Tracks how many times a user has asked about a financial concept.
+    Returns (count, threshold_reached) where threshold_reached is True at 2nd query."""
+    with get_session() as session:
+        user = session.query(User).filter_by(id=user_id).first()
+        if not user:
+            return 1, False
+        profile = user.profile()
+        counts = profile.get("concept_counts", {})
+        count = counts.get(concept_key, 0) + 1
+        counts[concept_key] = count
+        profile["concept_counts"] = counts
+        user.set_profile(profile)
+        threshold_reached = (count == 2 or count == 4)
+        return count, threshold_reached

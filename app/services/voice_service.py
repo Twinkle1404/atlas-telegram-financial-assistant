@@ -28,6 +28,13 @@ def transcribe(file_path: str) -> str:
         import speech_recognition as sr
         from pydub import AudioSegment
 
+        # Configure static ffmpeg binary from imageio_ffmpeg if installed
+        try:
+            import imageio_ffmpeg
+            AudioSegment.converter = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            pass
+
         wav_path = file_path + ".wav"
         audio = AudioSegment.from_file(file_path)
         audio.export(wav_path, format="wav")

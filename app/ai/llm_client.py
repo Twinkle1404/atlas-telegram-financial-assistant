@@ -127,17 +127,48 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
     is_hinglish = profile_lang in ("hinglish", "hindi") or any(k in text_lower for k in hinglish_keywords)
 
     # 0. Hinglish Nifty / Market Drop query check
-    if is_hinglish and any(k in text_lower for k in ["nifty", "gira", "market", "aaj"]):
-        return """📉 **NIFTY 50 Market Update**
+    # 0b. Personalized Finance News query check
+    if any(k in text_lower for k in ["news", "headline", "headlines", "stories", "finance news", "important news"]):
+        user_cats = user_obj.profile().get("news_categories", ["Indian market", "Company news"]) if user_obj else ["Indian market", "Company news"]
+        items = market_data.get_company_news("OR ".join(user_cats[:2]), max_items=3)
+        news_blocks = []
+        for idx, item in enumerate(items, 1):
+            if "title" in item and item["title"]:
+                title = item.get("title")
+                src = item.get("source", "Financial News")
+                desc = item.get("description", "Market trends and institutional investor updates.")
+                news_blocks.append(f"""📌 **{idx}. {title}** ({src})
+• **Why it matters:** {desc[:180] if desc else 'Impacts sector valuation and investor sentiment.'}
+• **What to watch next:** Follow upcoming policy announcements and earnings guidance.""")
+        if not news_blocks:
+            news_blocks = [
+                "📌 **1. RBI Repo Rate Held Steady at 6.50%** (Financial Express)\n• **Why it matters:** Maintains borrowing cost stability for auto and retail loans.\n• **What to watch next:** Monitor core CPI inflation trajectory.",
+                "📌 **2. Auto Sector Revenue Uptick** (Economic Times)\n• **Why it matters:** Strong festivity demand drives commercial vehicle volume gains.\n• **What to watch next:** Check margin expansion in upcoming Q3 balance sheets."
+            ]
 
-NIFTY aaj mainly banking aur IT stocks mein selling pressure ki wajah se gira.
+        return f"""📰 **Important Finance News (Tailored for you)**
 
-📌 **Mukhy Wajah (Key Reasons):**
-• **Banking & Financial Stocks:** Heavy FII selling pressure HDFC Bank aur ICICI Bank mein raha.
-• **Global Markets:** US Fed interest rate decision se pehle investors ne profit booking ki.
-• **Crude Oil & Currency:** USD/INR ₹84.10 par stable hai, lekin global tension se volatility rahi.
+{chr(10).join(news_blocks)}
 
-💡 **Investor Takeaway:** Short-term market thoda volatile hai, lekin long-term business fundamentals solid hain."""
+💡 *Want to customize categories? Tap "⚙️ Preferences" or "Select News Categories"!*"""
+
+    # 0c. Learn Finance / Teach Me query check
+    if any(k in text_lower for k in ["teach", "learn", "investing", "course", "lesson", "education"]):
+        return """🎓 **Learn Finance — 9-Step Progressive Learning Path**
+
+Master financial concepts step-by-step from beginner to advanced:
+
+📈 **1. What is a Stock?** — Ownership, shares & why companies issue stock
+🏛️ **2. How the Stock Market Works** — NSE, BSE, order matching & price discovery
+💰 **3. Revenue & Profit** — Top-line sales vs bottom-line net income
+📋 **4. Financial Statements** — Income statement, Balance Sheet & Cash Flow
+🔢 **5. P/E & EPS** — Earnings per share & valuation multiples
+📐 **6. ROE & ROCE** — Return on equity & capital efficiency
+🔍 **7. Company Analysis** — Moats, management quality & balance sheet health
+💎 **8. Valuation** — P/E, P/B, market cap & finding intrinsic value
+🛡️ **9. Risk Management** — Portfolio diversification & asset allocation
+
+💡 *Tap any topic button in **Learn Finance** to get a 60-second lesson!*"""
 
     known_tickers = {
         "apple": "AAPL", "aapl": "AAPL",

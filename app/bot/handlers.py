@@ -453,22 +453,28 @@ Top industry peers:
         await query.message.reply_text(msg, parse_mode="Markdown")
         return
 
-    # ── Direct competitor research selection ──
+    # ── Direct competitor / company research selection ──
     if data.startswith("research:"):
         target = data.split(":", 1)[1]
         await query.message.chat.send_action("typing")
         memory_service.touch_last_active(user.id)
 
-        prompt = f"Compare {target} with its peers and show its financials."
+        prompt = f"Give me full research and financials on {target}."
         conversation_service.log_message(user.id, "user", prompt, input_type="text")
         history = conversation_service.get_recent_history(user.id)[:-1]
-        reply = await asyncio.to_thread(
-            claude_client.generate_reply, user.id, user.profile(), history, prompt
-        )
+        try:
+            reply = await asyncio.to_thread(
+                claude_client.generate_reply, user.id, user.profile(), history, prompt
+            )
+        except Exception as exc:
+            logger.warning("research:%s AI generation failed: %s. Using smart fallback.", target, exc)
+            from app.ai.llm_client import _smart_fallback_response
+            reply = _smart_fallback_response(prompt, user.id)
+
         reply = trim_for_telegram(reply)
         conversation_service.log_message(user.id, "assistant", reply)
         for chunk in chunk_for_telegram(reply):
-            await query.message.reply_text(chunk, reply_markup=_build_followup_keyboard(ticker=target))
+            await query.message.reply_text(chunk, reply_markup=_build_followup_keyboard(ticker=target), parse_mode="Markdown")
         return
 
     # ── Explain/Deepen & Guided Research actions ──
@@ -498,10 +504,14 @@ Top industry peers:
 
         prompt = action_prompts.get(action_type, f"Tell me more about: {original_text[:200]}")
         conversation_service.log_message(user.id, "user", f"[{action_type}]", input_type="text")
-        history = conversation_service.get_recent_history(user.id)[:-1]
-        reply = await asyncio.to_thread(
-            claude_client.generate_reply, user.id, user.profile(), history, prompt
-        )
+        try:
+            reply = await asyncio.to_thread(
+                claude_client.generate_reply, user.id, user.profile(), history, prompt
+            )
+        except Exception as exc:
+            logger.warning("action:%s AI generation failed: %s. Using smart fallback.", action_type, exc)
+            from app.ai.llm_client import _smart_fallback_response
+            reply = _smart_fallback_response(prompt, user.id)
         reply = trim_for_telegram(reply)
 
         # Guided Next-Step Question & Keyboard

@@ -190,41 +190,86 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
         if not target_ticker:
             target_ticker = "AMZN"
 
-        quote = json.loads(dispatch_tool("get_stock_quote", {"ticker": target_ticker}, user_id))
-        fundamentals = json.loads(dispatch_tool("get_company_fundamentals", {"ticker": target_ticker}, user_id))
+        # Check if user is asking a SPECIFIC financial question or just typed a company name
+        has_financial_question = any(k in text_lower for k in [
+            "profit", "loss", "revenue", "financials", "quarter", "earnings",
+            "price", "stock", "pe", "p/e", "valuation", "market cap",
+            "fundamentals", "research", "analysis", "full research",
+            "how is", "how's", "what happened", "why", "performance"
+        ])
 
-        name = fundamentals.get("name") or target_ticker
-        price_inr = quote.get("formatted_price") or f"₹{quote.get('price_inr', 0):,.2f}"
-        mcap = fundamentals.get("market_cap_formatted") or "N/A"
-        pe = fundamentals.get("pe_ratio") or "N/A"
-        rev = f"₹{fundamentals.get('revenue_ttm_inr', 0)/1e7:,.2f} Cr" if fundamentals.get("revenue_ttm_inr") else "N/A"
-        gross_margin = f"{fundamentals.get('gross_margin', 0)*100:.1f}%" if fundamentals.get("gross_margin") else "N/A"
-        profit_margin = f"{fundamentals.get('profit_margin', 0)*100:.1f}%" if fundamentals.get("profit_margin") else "N/A"
-        high52 = f"₹{fundamentals.get('52w_high', 0):,.2f}" if fundamentals.get("52w_high") else "N/A"
-        low52 = f"₹{fundamentals.get('52w_low', 0):,.2f}" if fundamentals.get("52w_low") else "N/A"
-        rec = (fundamentals.get("analyst_recommendation") or "Outperform").capitalize()
+        if has_financial_question:
+            # User asked a specific question — deliver a CLEAN, compact report
+            quote = json.loads(dispatch_tool("get_stock_quote", {"ticker": target_ticker}, user_id))
+            fundamentals = json.loads(dispatch_tool("get_company_fundamentals", {"ticker": target_ticker}, user_id))
 
-        return f"""📊 **Financial Research & Profit/Loss Report: {name} ({target_ticker})**
+            name = fundamentals.get("name") or target_ticker
+            price_inr = quote.get("formatted_price") or f"₹{quote.get('price_inr', 0):,.2f}"
+            change = quote.get('change_pct', 0)
+            change_emoji = "🟢" if change >= 0 else "🔴"
 
-📌 **Stock Quote & 52-Week Range (in ₹ Rupees):**
-- **Current Price:** {price_inr} ({quote.get('change_pct', 0):+.2f}% today)
-- **52-Week Range:** {low52} — {high52}
+            # Format market cap in readable lakhs crores
+            mcap_raw = fundamentals.get("market_cap_inr", 0)
+            if mcap_raw and mcap_raw > 0:
+                mcap_cr = mcap_raw / 1e7
+                if mcap_cr >= 100000:
+                    mcap_str = f"₹{mcap_cr/100000:.1f}L Cr"
+                else:
+                    mcap_str = f"₹{mcap_cr:,.0f} Cr"
+            else:
+                mcap_str = fundamentals.get("market_cap_formatted", "N/A")
 
-📊 **Profit & Loss (P&L Summary):**
-- **TTM Revenue:** {rev}
-- **Gross Profit Margin:** {gross_margin}
-- **Net Profit Margin:** {profit_margin}
-- **Sector/Industry:** {fundamentals.get('sector', 'Technology')} / {fundamentals.get('industry', 'Global')}
+            rev_raw = fundamentals.get("revenue_ttm_inr", 0)
+            if rev_raw and rev_raw > 0:
+                rev_cr = rev_raw / 1e7
+                if rev_cr >= 100000:
+                    rev_str = f"₹{rev_cr/100000:.1f}L Cr"
+                else:
+                    rev_str = f"₹{rev_cr:,.0f} Cr"
+            else:
+                rev_str = "N/A"
 
-💰 **Valuation & Capital Structure:**
-- **Market Capitalization:** {mcap}
-- **P/E Ratio (Trailing):** {pe}x (Forward P/E: {fundamentals.get('forward_pe', 'N/A')}x)
-- **Beta Volatility:** {fundamentals.get('beta', 1.0)}
+            profit_margin = f"{fundamentals.get('profit_margin', 0)*100:.1f}%" if fundamentals.get("profit_margin") else "N/A"
+            pe = fundamentals.get("pe_ratio") or "N/A"
+            sector = fundamentals.get("sector", "")
 
-🎯 **Analyst Consensus & Outlook:**
-- **Consensus Rating:** {rec}
-- **Target Price (Mean):** ₹{fundamentals.get('target_mean_price', 0):,.2f}
+            return f"""{change_emoji} **{name}** ({target_ticker}) — {price_inr} ({change:+.2f}%)
+
+📊 **Key Financials**
+• Revenue (TTM): {rev_str}
+• Net Margin: {profit_margin}
+• P/E Ratio: {pe}x
+• Market Cap: {mcap_str}
+• Sector: {sector}
+
+💡 {name} {"is trading near its highs" if change > 0 else "has seen some pressure recently"}. {"Strong margins suggest solid profitability." if fundamentals.get('profit_margin', 0) > 0.15 else "Margins are worth watching closely."}
+
+📌 *What next?*
+• "Compare {target_ticker} with competitors"
+• "{target_ticker} news"
+• "{target_ticker} risks"
 """
+        else:
+            # User typed JUST a company name — show the research menu
+            quote = json.loads(dispatch_tool("get_stock_quote", {"ticker": target_ticker}, user_id))
+            name = quote.get("ticker", target_ticker)
+            price_inr = quote.get("formatted_price", "")
+            change = quote.get('change_pct', 0)
+            change_emoji = "🟢" if change >= 0 else "🔴"
+
+            return f"""Sure! **{name}** is at {price_inr} ({change:+.2f}% today) {change_emoji}
+
+What would you like to know?
+
+🔎 **Full Research** — complete company analysis
+💰 **Profit & Loss** — revenue, margins, earnings
+📈 **Stock Performance** — price history & movements
+📰 **Latest News** — recent developments
+🏢 **Competitors** — rival companies comparison
+⚠️ **Risks** — business & financial risks
+🎓 **Explain Simply** — beginner-friendly overview
+
+Just pick one or ask me anything about {name}!"""
 
     # 3. Portfolio analytics check
     if any(c.isdigit() for c in user_text) and any(k in text_lower for k in ["hold", "shares", "portfolio", "aapl", "nvda", "spy"]):

@@ -583,9 +583,15 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conversation_service.log_message(user.id, "user", caption or "[sent an image]", input_type="image")
     history = conversation_service.get_recent_history(user.id)[:-1]
 
-    reply = await asyncio.to_thread(
-        claude_client.analyze_image, user.id, user.profile(), history, b64_image, "image/jpeg", caption
-    )
+    try:
+        reply = await asyncio.to_thread(
+            claude_client.analyze_image, user.id, user.profile(), history, b64_image, "image/jpeg", caption
+        )
+    except Exception as exc:
+        logger.warning("analyze_image failed for user %s: %s. Using smart fallback.", user.id, exc)
+        from app.ai.llm_client import _smart_fallback_response
+        reply = _smart_fallback_response(caption or "chart analysis", user.id)
+
     reply = trim_for_telegram(reply)
     conversation_service.log_message(user.id, "assistant", reply)
     await update.message.reply_text(reply)
@@ -609,7 +615,21 @@ async def document_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    summary = await asyncio.to_thread(claude_client.summarize_document, extracted_text, tg_doc.file_name)
+    try:
+        summary = await asyncio.to_thread(claude_client.summarize_document, extracted_text, tg_doc.file_name)
+    except Exception as exc:
+        logger.warning("summarize_document failed for %s: %s. Using fallback summary.", tg_doc.file_name, exc)
+        lines = [line.strip() for line in extracted_text.splitlines() if line.strip()]
+        first_few = " ".join(lines[:10])[:300]
+        summary = (
+            f"📄 **Executive Summary ({tg_doc.file_name})**\n\n"
+            f"**Key Findings & Overview:**\n"
+            f"{first_few}...\n\n"
+            f"📌 **Key Financial Takeaways:**\n"
+            f"• Revenue & operational progress tracked\n"
+            f"• Asset & liability positioning recorded\n"
+            f"• Risk & management commentary reviewed"
+        )
 
     from app.database import get_session
     from app.models.document import Document

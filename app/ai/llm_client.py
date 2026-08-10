@@ -117,7 +117,7 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
     """Generates structured financial research, stock market analysis, P&L, stock quote,
     or portfolio report directly when external API key is unconfigured or encounters disruptions."""
     from app.ai.tools import dispatch_tool
-    from app.services import conversation_service, memory_service, market_data
+    from app.services import conversation_service, memory_service, market_data, news_service
     text_lower = user_text.lower().strip()
 
     # Detect user's preferred language style or auto-detect from input text
@@ -148,11 +148,30 @@ def _smart_fallback_response(user_text: str, user_id: int) -> str:
 
 📈 *Want to analyze a specific stock's balance sheet? Type any company name (e.g., 'Tata Motors', 'Reliance', 'Apple')!*"""
 
-    # 0. Hinglish Nifty / Market Drop query check
+    # 0a. Google / Web Search Check ("google", "search", "search google for X", "find X", "latest news on X")
+    is_google_search = any(k in text_lower for k in [
+        "google", "search google", "search", "google for", "search web", "find details on"
+    ]) or text_lower.startswith("search ")
+    if is_google_search:
+        clean_query = text_lower.replace("google search for", "").replace("google search", "").replace("search google for", "").replace("search google", "").replace("search web for", "").replace("search for", "").replace("search ", "").replace("google", "").strip()
+        search_target = clean_query or text_lower
+        try:
+            results = news_service.google_web_search(search_target, max_items=5)
+            if results and isinstance(results, list):
+                lines = [f"🌐 **Google Search Results for '{search_target.title()}':**\n"]
+                for item in results[:5]:
+                    title = item.get("title", "Headline")
+                    src = item.get("source", "Google News")
+                    lines.append(f"• **{title}** ({src})")
+                lines.append("\n💡 *Ask me to analyze any company, stock, or concept from these results!*")
+                return "\n".join(lines)
+        except Exception:
+            pass
+
     # 0b. Personalized Finance News query check
     if any(k in text_lower for k in ["news", "headline", "headlines", "stories", "finance news", "important news"]):
         user_cats = user_obj.profile().get("news_categories", ["Indian market", "Company news"]) if user_obj else ["Indian market", "Company news"]
-        items = market_data.get_company_news("OR ".join(user_cats[:2]), max_items=3)
+        items = news_service.get_company_news("OR ".join(user_cats[:2]), max_items=3)
         news_blocks = []
         for idx, item in enumerate(items, 1):
             if "title" in item and item["title"]:
@@ -383,6 +402,27 @@ ROCE includes debt, making it essential for analyzing capital-intensive sectors 
 • **Mid-Cap:** ₹5,000 Cr to ₹20,000 Cr — Growth potential + moderate risk
 • **Small-Cap:** Under ₹5,000 Cr — High growth potential + higher volatility""",
     }
+    # 0b. Google / Web Search Check ("google", "search", "search google for X", "find X", "latest news on X")
+    is_google_search = any(k in text_lower for k in [
+        "google", "search google", "search", "google for", "search web", "latest news on", "find details on"
+    ])
+    if is_google_search:
+        clean_query = text_lower.replace("google search for", "").replace("google search", "").replace("search google for", "").replace("search google", "").replace("search web for", "").replace("search for", "").replace("google", "").strip()
+        search_target = clean_query or text_lower
+        try:
+            from app.services import news_service
+            results = news_service.google_web_search(search_target, max_items=5)
+            if results and isinstance(results, list):
+                lines = [f"🌐 **Google Search Results for '{search_target.title()}':**\n"]
+                for item in results[:5]:
+                    title = item.get("title", "Headline")
+                    src = item.get("source", "Google News")
+                    lines.append(f"• **{title}** ({src})")
+                lines.append("\n💡 *Ask me to analyze any company, stock, or concept from these results!*")
+                return "\n".join(lines)
+        except Exception:
+            pass
+
     # Check for concept questions like "what is sensex", "explain sensex", "explain p/e ratio", "sensex kya hai"
     is_concept_question = any(k in text_lower for k in ["what is", "what are", "explain", "define", "meaning of", "kya hai", "kya hota", "tell me about p/e", "tell me about pe"]) and not is_tell_more
     for concept_key, concept_answer in concept_answers.items():

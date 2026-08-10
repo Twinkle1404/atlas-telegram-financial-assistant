@@ -75,9 +75,6 @@ from app.config import settings
 
 def _get_user(update: Update):
     tg_user = update.effective_user
-    if settings.ALLOWED_USER_IDS and tg_user and tg_user.id not in settings.ALLOWED_USER_IDS:
-        logger.warning("Unauthorized access attempt by Telegram User ID: %s (%s)", tg_user.id, tg_user.first_name)
-        raise PermissionError(f"Access Restricted. Your Telegram User ID ({tg_user.id}) is not authorized to access this bot.")
     return memory_service.get_or_create_user(
         telegram_id=str(tg_user.id), first_name=tg_user.first_name or "", username=tg_user.username or ""
     )
@@ -274,11 +271,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     data = query.data
-    user = memory_service.get_or_create_user(
-        str(update.effective_user.id),
-        update.effective_user.first_name,
-        update.effective_user.username or "",
-    )
+    user = _get_user(update)
 
     # ── Learn Finance topics ──
     if data.startswith("learn:"):

@@ -65,12 +65,45 @@ def _yfinance_news(query: str, max_items: int) -> list[dict]:
         return [{"error": str(exc)}]
 
 
+def google_web_search(query: str, max_items: int = 5) -> list[dict]:
+    """Fetches real-time search results from Google News RSS feed."""
+    import xml.etree.ElementTree as ET
+    import urllib.parse
+
+    encoded_query = urllib.parse.quote(query)
+    url = f"https://news.google.com/rss/search?q={encoded_query}&hl=en-IN&gl=IN&ceid=IN:en"
+
+    try:
+        resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=6)
+        if resp.status_code == 200:
+            root = ET.fromstring(resp.content)
+            items = []
+            for item in root.findall(".//item")[:max_items]:
+                title = item.findtext("title", "")
+                link = item.findtext("link", "")
+                pub_date = item.findtext("pubDate", "")
+                source = item.findtext("source", "Google Search")
+                if title:
+                    items.append({
+                        "title": title,
+                        "url": link,
+                        "published_at": pub_date,
+                        "source": source,
+                    })
+            if items:
+                return items
+    except Exception as exc:
+        pass
+
+    return get_company_news(query, max_items)
+
+
 def get_personalized_news(categories: list[str] = None, watchlist: list[str] = None, max_items: int = 4) -> list[dict]:
     """Retrieves news filtered by user's selected categories and watchlist."""
     categories = categories or ["Indian market", "Company news"]
     query_parts = list(categories)
     if watchlist:
         query_parts.extend(watchlist[:2])
-    
+
     search_query = " OR ".join(query_parts)
     return get_company_news(search_query, max_items=max_items)

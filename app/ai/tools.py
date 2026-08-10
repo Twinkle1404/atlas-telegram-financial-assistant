@@ -211,6 +211,15 @@ TOOL_SCHEMAS = [
         },
     },
     {
+        "name": "search_google_web",
+        "description": "Search Google Web/News for real-time news headlines, company updates, or global market events.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"query": {"type": "string", "description": "Search query or topic"}},
+            "required": ["query"],
+        },
+    },
+    {
         "name": "search_google_drive",
         "description": "Search Google Drive workspace for research decks, investment memos, or due diligence papers.",
         "input_schema": {
@@ -332,6 +341,9 @@ def dispatch_tool(name: str, tool_input: dict, user_id: int) -> str:
 
         elif name == "analyze_financial_spreadsheet":
             result = workspace_service.analyze_spreadsheet(tool_input.get("file_hint", ""))
+
+        elif name == "search_google_web":
+            result = news_service.google_web_search(tool_input["query"])
 
         elif name == "search_google_drive":
             result = workspace_service.search_google_drive(tool_input["query"])

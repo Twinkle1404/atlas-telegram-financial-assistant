@@ -402,8 +402,10 @@ ROCE includes debt, making it essential for analyzing capital-intensive sectors 
         "netflix": "NFLX", "nflx": "NFLX",
         "amd": "AMD", "intel": "INTC", "boeing": "BA",
         "spy": "SPY",
+        "accenture": "ACN", "acn": "ACN",
+        "cognizant": "CTSH",
         # Indian companies — broad coverage
-        "reliance": "RELIANCE.NS", "ril": "RELIANCE.NS",
+        "reliance": "RELIANCE.NS", "ril": "RELIANCE.NS", "relience": "RELIANCE.NS", "relaince": "RELIANCE.NS",
         "tata motors": "TATAMOTORS.NS", "tatamotors": "TATAMOTORS.NS", "tata": "TATAMOTORS.NS",
         "tata steel": "TATASTEEL.NS", "tatasteel": "TATASTEEL.NS",
         "tata power": "TATAPOWER.NS",
@@ -502,9 +504,19 @@ ROCE includes debt, making it essential for analyzing capital-intensive sectors 
         if company_signal:
             try:
                 import yfinance as yf
-                # Extract potential company name (remove common query words)
-                query_words = text_lower.replace("tell me about", "").replace("what about", "").replace("show me", "").strip()
-                for suffix in [".NS", ".BO", ""]:
+                # Extract potential company name (remove common query filler words)
+                query_words = text_lower
+                for filler in [
+                    "tell me about the company", "tell me about company", "tell me about the stock",
+                    "tell me about stock", "tell me about the share", "tell me about share",
+                    "tell me about", "what about the company", "what about company", "what about",
+                    "show me the company", "show me company", "show me", "details on the company",
+                    "details on", "information on", "about the company", "about company", "the company", "the stock"
+                ]:
+                    query_words = query_words.replace(filler, "")
+                query_words = query_words.strip()
+
+                for suffix in ["", ".NS", ".BO"]:
                     test_ticker = query_words.upper().replace(" ", "") + suffix
                     try:
                         t = yf.Ticker(test_ticker)

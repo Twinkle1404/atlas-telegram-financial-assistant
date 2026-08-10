@@ -507,8 +507,9 @@ ROCE includes debt, making it essential for analyzing capital-intensive sectors 
                 for suffix in [".NS", ".BO", ""]:
                     test_ticker = query_words.upper().replace(" ", "") + suffix
                     try:
-                        info = yf.Ticker(test_ticker).info
-                        if info.get("regularMarketPrice") or info.get("currentPrice"):
+                        t = yf.Ticker(test_ticker)
+                        price = t.fast_info.get("last_price")
+                        if price and price > 0:
                             target_ticker = test_ticker
                             break
                     except Exception:

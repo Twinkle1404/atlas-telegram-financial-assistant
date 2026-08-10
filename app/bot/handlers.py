@@ -170,46 +170,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conversation_service.log_message(user.id, "assistant", onboarding.welcome_message(user.first_name))
 
 
-async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handles all inline keyboard button presses."""
-    query = update.callback_query
-    await query.answer()
 
-    user = _get_user(update)
-    data = query.data
-
-    # ── Learn Finance topics ──
-    if data.startswith("learn:"):
-        topic_id = data.split(":", 1)[1]
-        for tid, tname, tprompt in LEARN_TOPICS:
-            if tid == topic_id:
-                await query.message.chat.send_action("typing")
-                memory_service.touch_last_active(user.id)
-                conversation_service.log_message(user.id, "user", f"Teach me: {tname}", input_type="text")
-
-                history = conversation_service.get_recent_history(user.id)[:-1]
-                reply = await asyncio.to_thread(
-                    claude_client.generate_reply, user.id, user.profile(), history, tprompt
-                )
-                reply = trim_for_telegram(reply)
-                conversation_service.log_message(user.id, "assistant", reply)
-
-                # Find next topic in curriculum
-                idx = [t[0] for t in LEARN_TOPICS].index(topic_id)
-                if idx < len(LEARN_TOPICS) - 1:
-                    next_id, next_name, _ = LEARN_TOPICS[idx + 1]
-                    keyboard = InlineKeyboardMarkup([
-                        [InlineKeyboardButton(f"Next: {next_name}", callback_data=f"learn:{next_id}")],
-                        [InlineKeyboardButton("📚 All Topics", callback_data="quick:learn")],
-                    ])
-                else:
-                    keyboard = InlineKeyboardMarkup([
-                        [InlineKeyboardButton("📚 Start Over", callback_data="quick:learn")],
-                    ])
-
-                for chunk in chunk_for_telegram(reply):
-                    await query.message.reply_text(chunk, reply_markup=keyboard)
-                return
 
 NEWS_CATEGORIES = [
     ("indian_market", "🇮🇳 Indian market"),
@@ -318,6 +279,45 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update.effective_user.first_name,
         update.effective_user.username or "",
     )
+
+    # ── Learn Finance topics ──
+    if data.startswith("learn:"):
+        topic_id = data.split(":", 1)[1]
+        for tid, tname, tprompt in LEARN_TOPICS:
+            if tid == topic_id:
+                await query.message.chat.send_action("typing")
+                memory_service.touch_last_active(user.id)
+                conversation_service.log_message(user.id, "user", f"Teach me: {tname}", input_type="text")
+
+                history = conversation_service.get_recent_history(user.id)[:-1]
+                try:
+                    reply = await asyncio.to_thread(
+                        claude_client.generate_reply, user.id, user.profile(), history, tprompt
+                    )
+                except Exception as exc:
+                    logger.warning("learn:%s AI generation failed: %s. Using smart fallback.", topic_id, exc)
+                    from app.ai.llm_client import _smart_fallback_response
+                    reply = _smart_fallback_response(tprompt, user.id)
+
+                reply = trim_for_telegram(reply)
+                conversation_service.log_message(user.id, "assistant", reply)
+
+                # Find next topic in curriculum
+                idx = [t[0] for t in LEARN_TOPICS].index(topic_id)
+                if idx < len(LEARN_TOPICS) - 1:
+                    next_id, next_name, _ = LEARN_TOPICS[idx + 1]
+                    keyboard = InlineKeyboardMarkup([
+                        [InlineKeyboardButton(f"Next: {next_name}", callback_data=f"learn:{next_id}")],
+                        [InlineKeyboardButton("📚 All Topics", callback_data="quick:learn")],
+                    ])
+                else:
+                    keyboard = InlineKeyboardMarkup([
+                        [InlineKeyboardButton("📚 Start Over", callback_data="quick:learn")],
+                    ])
+
+                for chunk in chunk_for_telegram(reply):
+                    await query.message.reply_text(chunk, reply_markup=keyboard, parse_mode="Markdown")
+                return
 
     # ── Toggle News Category action ──
     if data.startswith("toggle_news:"):

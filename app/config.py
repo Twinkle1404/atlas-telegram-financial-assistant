@@ -21,6 +21,12 @@ class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./financial_assistant.db")
     DOCUMENTS_DIR: str = os.getenv("DOCUMENTS_DIR", "./data/documents")
 
+    # Security & Whitelisting Settings
+    ALLOWED_USER_IDS: list[int] = [
+        int(uid.strip()) for uid in os.getenv("ALLOWED_USER_IDS", "").split(",") if uid.strip().isdigit()
+    ]
+    BOT_ADMIN_ID: str = os.getenv("BOT_ADMIN_ID", "")
+
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
     GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
     GOOGLE_REDIRECT_URI: str = os.getenv("GOOGLE_REDIRECT_URI", "")

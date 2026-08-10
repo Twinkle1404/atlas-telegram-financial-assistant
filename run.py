@@ -61,7 +61,14 @@ def main():
     application.post_init = _post_init
 
     logger.info("Financial Assistant bot starting (polling mode)...")
-    application.run_polling(allowed_updates=["message", "callback_query"])
+    while True:
+        try:
+            application.run_polling(allowed_updates=["message", "callback_query"])
+            break
+        except Exception as exc:
+            logger.warning("Polling connection issue (%s). Retrying in 3 seconds...", exc)
+            import time
+            time.sleep(3)
 
 
 if __name__ == "__main__":

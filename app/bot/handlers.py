@@ -67,6 +67,26 @@ def _build_followup_keyboard(context_hint: str = "", ticker: str = "") -> Inline
             InlineKeyboardButton(f"🏢 Compare {ticker} Competitors", callback_data=f"comp:{ticker}"),
             InlineKeyboardButton(f"⭐ {ticker} AI Health Score", callback_data=f"score:{ticker}"),
         ])
+def _build_company_research_keyboard(ticker: str = "AAPL") -> InlineKeyboardMarkup:
+    """Builds real interactive inline keyboard buttons for company research options."""
+    tk = ticker or "AAPL"
+    buttons = [
+        [
+            InlineKeyboardButton("🔎 Full Research", callback_data=f"action:full_research:{tk}"),
+            InlineKeyboardButton("💰 Profit & Loss", callback_data=f"action:profit_loss:{tk}"),
+        ],
+        [
+            InlineKeyboardButton("📈 Stock Performance", callback_data=f"action:stock:{tk}"),
+            InlineKeyboardButton("⭐ AI Health Score", callback_data=f"score:{tk}"),
+        ],
+        [
+            InlineKeyboardButton("🏢 Competitors", callback_data=f"comp:{tk}"),
+            InlineKeyboardButton("⚠️ Key Risks", callback_data=f"action:risk:{tk}"),
+        ],
+        [
+            InlineKeyboardButton("🎓 Explain Simply", callback_data=f"action:explain_simply:{tk}"),
+        ],
+    ]
     return InlineKeyboardMarkup(buttons)
 
 
@@ -717,8 +737,16 @@ _To change any preference, just tell me naturally — e.g. "change my language t
     reply = trim_for_telegram(reply)
     conversation_service.log_message(user.id, "assistant", reply)
 
-    # Add interactive buttons if response contains financial metrics
-    keyboard = _build_followup_keyboard() if _detect_financial_response(reply) else None
+    # Add interactive buttons if response is company research or financial metrics
+    keyboard = None
+    if "What would you like to explore about" in reply or "Sure! **" in reply or "Company Research" in reply:
+        import re
+        match = re.search(r"\*\*(.+?)\*\*", reply)
+        extracted_ticker = match.group(1).replace(" Corporation", "").strip() if match else "AAPL"
+        keyboard = _build_company_research_keyboard(extracted_ticker)
+    elif _detect_financial_response(reply):
+        keyboard = _build_followup_keyboard()
+
     chunks = chunk_for_telegram(reply)
 
     for i, chunk in enumerate(chunks):

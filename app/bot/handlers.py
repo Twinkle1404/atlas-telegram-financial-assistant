@@ -737,7 +737,7 @@ _To change any preference, just tell me naturally — e.g. "change my language t
     reply = trim_for_telegram(reply)
     conversation_service.log_message(user.id, "assistant", reply)
 
-    # Add interactive buttons if response is company research or financial metrics
+    # Add interactive buttons — ALWAYS ensure a keyboard is attached to every assistant reply
     keyboard = None
     if "What would you like to explore about" in reply or "Sure! **" in reply or "Company Research" in reply:
         import re
@@ -746,12 +746,15 @@ _To change any preference, just tell me naturally — e.g. "change my language t
         keyboard = _build_company_research_keyboard(extracted_ticker)
     elif _detect_financial_response(reply):
         keyboard = _build_followup_keyboard()
+    else:
+        keyboard = _build_company_research_keyboard("AAPL")
 
     chunks = chunk_for_telegram(reply)
 
     for i, chunk in enumerate(chunks):
-        # Attach keyboard to the final chunk
-        if i == len(chunks) - 1 and keyboard:
-            await update.message.reply_text(chunk, reply_markup=keyboard, parse_mode="Markdown")
-        else:
-            await update.message.reply_text(chunk, parse_mode="Markdown")
+        target_kb = keyboard if i == len(chunks) - 1 else None
+        try:
+            await update.message.reply_text(chunk, reply_markup=target_kb, parse_mode="Markdown")
+        except Exception as exc:
+            logger.warning("reply_text with Markdown failed (%s). Sending plain text with keyboard.", exc)
+            await update.message.reply_text(chunk, reply_markup=target_kb)

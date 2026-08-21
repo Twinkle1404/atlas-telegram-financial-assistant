@@ -265,6 +265,34 @@ TOOL_SCHEMAS = [
             "required": ["ticker"],
         },
     },
+    {
+        "name": "generate_stock_chart",
+        "description": "Generate a visual Matplotlib stock price chart (with 20-day SMA, 50-day SMA, and volume subplots) for a company stock ticker.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker e.g. TATAMOTORS.NS, AAPL, RELIANCE.NS"},
+                "period": {"type": "string", "description": "Time period e.g. '1m', '3m', '6m', '1y'", "default": "6m"}
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "generate_comparison_chart",
+        "description": "Generate a comparative Matplotlib percentage return performance chart comparing multiple stocks side-by-side.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tickers": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of tickers e.g. ['TATAMOTORS.NS', 'M&M.NS'] or ['AAPL', 'MSFT']"
+                },
+                "period": {"type": "string", "description": "Time period e.g. '1m', '3m', '6m', '1y'", "default": "6m"}
+            },
+            "required": ["tickers"],
+        },
+    },
 ]
 
 
@@ -362,6 +390,20 @@ def dispatch_tool(name: str, tool_input: dict, user_id: int) -> str:
 
         elif name == "get_competitors":
             result = market_data.get_competitors(tool_input["ticker"])
+
+        elif name == "generate_stock_chart":
+            from app.services import chart_service
+            chart_path = chart_service.generate_stock_chart(
+                tool_input["ticker"], tool_input.get("period", "6m")
+            )
+            result = {"status": "success", "chart_path": chart_path, "ticker": tool_input["ticker"]}
+
+        elif name == "generate_comparison_chart":
+            from app.services import chart_service
+            chart_path = chart_service.generate_comparison_chart(
+                tool_input["tickers"], tool_input.get("period", "6m")
+            )
+            result = {"status": "success", "chart_path": chart_path, "tickers": tool_input["tickers"]}
 
         else:
             result = {"error": f"Unknown tool: {name}"}

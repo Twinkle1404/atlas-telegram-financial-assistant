@@ -524,6 +524,21 @@ Top industry peers:
         prompt = action_prompts.get(action_type, f"Tell me more about: {original_text[:200]}")
         conversation_service.log_message(user.id, "user", f"[{action_type}]", input_type="text")
         history = conversation_service.get_recent_history(user.id)[:-1]
+
+        # Attach visual Matplotlib chart photo for stock action
+        if action_type == "stock":
+            try:
+                from app.services import chart_service
+                chart_path = chart_service.generate_stock_chart(ticker)
+                if chart_path and os.path.exists(chart_path):
+                    with open(chart_path, "rb") as photo_file:
+                        await query.message.reply_photo(
+                            photo=photo_file,
+                            caption=f"📊 **Visual Stock Chart & Technical Indicators: {ticker}**"
+                        )
+            except Exception as chart_exc:
+                logger.warning("Failed to attach stock chart photo: %s", chart_exc)
+
         try:
             reply = await asyncio.to_thread(
                 claude_client.generate_reply, user.id, user.profile(), history, prompt
@@ -723,6 +738,29 @@ _To change any preference, just tell me naturally — e.g. "change my language t
         if completed:
             logger.info("User %s completed onboarding", user.telegram_id)
         return
+
+    # Generate visual stock chart if requested in text
+    if any(k in text.lower() for k in ["chart", "plot", "graph", "stock graph", "price chart"]):
+        try:
+            from app.services import chart_service
+            from app.ai.llm_client import known_tickers
+            words = text.split()
+            matched_ticker = None
+            for w in words:
+                clean_w = w.strip(".,!?\"'()").lower()
+                if clean_w in known_tickers:
+                    matched_ticker = known_tickers[clean_w]
+                    break
+            target_chart_ticker = matched_ticker or "TATAMOTORS.NS"
+            chart_path = chart_service.generate_stock_chart(target_chart_ticker)
+            if chart_path and os.path.exists(chart_path):
+                with open(chart_path, "rb") as photo_file:
+                    await update.message.reply_photo(
+                        photo=photo_file,
+                        caption=f"📊 **Visual Stock Price & Moving Average Chart: {target_chart_ticker}**"
+                    )
+        except Exception as chart_exc:
+            logger.warning("Text chart generation exception: %s", chart_exc)
 
     history = conversation_service.get_recent_history(user.id)[:-1]  # exclude the message we just logged
     try:

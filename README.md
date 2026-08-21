@@ -1,8 +1,7 @@
 # Atlas — AI Financial Assistant for Telegram
 
-An AI-powered Financial Assistant that lives inside Telegram and behaves like an experienced analyst on call — not a chatbot. It remembers who you are, pulls live market data, reads documents, analyzes portfolios, and only speaks up proactively when something actually matters.
-
-**Live Bot**: [t.me/MyAtlas_Finance_AI_Bot](https://t.me/MyAtlas_Finance_AI_Bot)
+🤖 **Live Telegram Bot**: [t.me/MyAtlas_Finance_AI_Bot](https://t.me/MyAtlas_Finance_AI_Bot)  
+📁 **GitHub Repository**: [https://github.com/Twinkle1404/atlas-telegram-financial-assistant](https://github.com/Twinkle1404/atlas-telegram-financial-assistant)
 
 ---
 
